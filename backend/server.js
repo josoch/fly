@@ -4,6 +4,7 @@ const cors = require('cors');
 const dotenv = require('dotenv');
 const bodyParser = require('body-parser');
 const customerRoutes = require('./routes/customers');
+const supplierRoutes = require('./routes/suppliers');
 
 // Load environment variables
 dotenv.config();
@@ -26,6 +27,7 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/customers', customerRoutes);
+app.use('/api/suppliers', supplierRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {

@@ -3,6 +3,8 @@ const router = express.Router();
 const Customer = require('../models/customer');
 const multer = require('multer');
 const path = require('path');
+const upload = require('../middleware/upload');
+const { processFile, validateFields } = require('../utils/fileImport');
 
 // Configure multer for file uploads
 const storage = multer.diskStorage({
@@ -14,7 +16,7 @@ const storage = multer.diskStorage({
   }
 });
 
-const upload = multer({ storage: storage });
+const uploadFile = multer({ storage: storage });
 
 // Get all customers
 router.get('/', async (req, res) => {
@@ -189,7 +191,7 @@ router.post('/:id/notes', async (req, res) => {
 });
 
 // Upload file for customer
-router.post('/:id/files', upload.single('file'), async (req, res) => {
+router.post('/:id/files', uploadFile.single('file'), async (req, res) => {
   try {
     console.log('Uploading file for customer:', req.params.id);
     const customer = await Customer.findById(req.params.id);
@@ -212,6 +214,94 @@ router.post('/:id/files', upload.single('file'), async (req, res) => {
   } catch (error) {
     console.error('Error uploading file for customer:', error);
     res.status(400).json({ message: 'Error uploading file for customer', error: error.message });
+  }
+});
+
+// Import customers from file
+router.post('/import', upload.single('file'), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: 'No file uploaded' });
+    }
+
+    console.log('Processing import file:', req.file.originalname);
+    const fileType = req.file.originalname.split('.').pop().toLowerCase();
+    if (!['csv', 'xls', 'xlsx'].includes(fileType)) {
+      return res.status(400).json({ message: 'Invalid file type. Only CSV and Excel files are allowed.' });
+    }
+
+    // Process the file
+    const data = await processFile(req.file.path, fileType);
+    console.log('Processed data:', data);
+
+    // Validate required fields
+    const requiredFields = ['accountCode', 'companyName'];
+    const validationErrors = validateFields(data, requiredFields);
+    if (validationErrors.length > 0) {
+      console.log('Validation errors:', validationErrors);
+      return res.status(400).json({
+        message: 'Validation errors in imported data',
+        errors: validationErrors
+      });
+    }
+
+    // Check for duplicate account codes and import data
+    const results = {
+      success: 0,
+      failed: 0,
+      errors: []
+    };
+
+    for (const item of data) {
+      try {
+        // Skip empty rows
+        if (!item.accountCode && !item.companyName) {
+          continue;
+        }
+
+        // Validate required fields for this row
+        if (!item.accountCode || !item.companyName) {
+          results.failed++;
+          results.errors.push(`Missing required fields for row: ${JSON.stringify(item)}`);
+          continue;
+        }
+
+        const existingCustomer = await Customer.findOne({ 
+          accountCode: item.accountCode.toString().trim() 
+        });
+        
+        if (existingCustomer) {
+          results.failed++;
+          results.errors.push(`Account code ${item.accountCode} already exists`);
+          continue;
+        }
+
+        const customer = new Customer({
+          ...item,
+          accountCode: item.accountCode.toString().trim(),
+          companyName: item.companyName.toString().trim()
+        });
+
+        await customer.save();
+        results.success++;
+      } catch (error) {
+        console.error('Error saving customer:', error);
+        results.failed++;
+        results.errors.push(`Error saving customer with account code ${item.accountCode}: ${error.message}`);
+      }
+    }
+
+    console.log('Import results:', results);
+    res.json({
+      message: 'Import completed',
+      results
+    });
+  } catch (error) {
+    console.error('Error processing import:', error);
+    res.status(500).json({
+      message: 'Error processing import',
+      error: error.message
+    });
   }
 });
 

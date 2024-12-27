@@ -38,6 +38,7 @@ import CancelIcon from '@mui/icons-material/Cancel';
 import EmailIcon from '@mui/icons-material/Email';
 import axios from 'axios';
 import CustomerForm from './CustomerForm';
+import ImportDialog from './ImportDialog';
 
 const initialCustomers = [
   {
@@ -79,6 +80,7 @@ function Customers() {
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [selectedCustomers, setSelectedCustomers] = useState([]);
   const [isFormOpen, setIsFormOpen] = useState(false);
+  const [openImport, setOpenImport] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [showInactive, setShowInactive] = useState(true);
   const [orderBy, setOrderBy] = useState('companyName');
@@ -92,7 +94,7 @@ function Customers() {
   // Safe number formatting function
   const formatCurrency = (value) => {
     const num = parseFloat(value) || 0;
-    return num.toFixed(2);
+    return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
   const filteredCustomers = customers
@@ -183,39 +185,41 @@ function Customers() {
   };
 
   const handleDeleteCustomers = async () => {
-    if (selectedCustomers.length === 0) {
-      alert('Please select customers to delete');
-      return;
-    }
-    
-    const confirmed = window.confirm(`Are you sure you want to delete ${selectedCustomers.length} customer(s)?`);
-    if (!confirmed) return;
+    if (selectedCustomers.length === 0) return;
 
-    try {
-      await Promise.all(
-        selectedCustomers.map(id => 
+    const confirmMessage = selectedCustomers.length === 1
+      ? 'Are you sure you want to delete this customer?'
+      : `Are you sure you want to delete these ${selectedCustomers.length} customers?`;
+
+    if (window.confirm(confirmMessage)) {
+      try {
+        setLoading(true);
+        const deletePromises = selectedCustomers.map(id =>
           axios.delete(`/api/customers/${id}`)
-        )
-      );
-      
-      await fetchCustomers(); // Refresh the list after deletion
-      setSelectedCustomers([]);
-    } catch (error) {
-      console.error('Error deleting customers:', error);
-      alert('Error deleting customers. Please try again.');
+        );
+        await Promise.all(deletePromises);
+        await fetchCustomers();
+        setSelectedCustomers([]);
+      } catch (error) {
+        console.error('Error deleting customers:', error);
+        setError('Error deleting customers: ' + error.message);
+      } finally {
+        setLoading(false);
+      }
     }
   };
 
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
-      const newSelected = filteredCustomers.map((customer) => customer.id);
+      const newSelected = filteredCustomers.map((customer) => customer._id);
       setSelectedCustomers(newSelected);
     } else {
       setSelectedCustomers([]);
     }
   };
 
-  const handleSelectCustomer = (id) => {
+  const handleSelectCustomer = (event, id) => {
+    event.stopPropagation(); // Prevent row click from triggering
     const selectedIndex = selectedCustomers.indexOf(id);
     let newSelected = [];
 
@@ -333,21 +337,36 @@ function Customers() {
             borderTop: '1px solid rgba(224, 224, 224, 1)',
             minHeight: '48px !important'
           }}>
-            <TextField
-              size="small"
-              placeholder="Search..."
-              variant="outlined"
-              value={searchTerm}
-              onChange={handleSearch}
-              sx={{ 
-                flexGrow: 1,
-                maxWidth: { xs: '100%', sm: 300 }
-              }}
-              InputProps={{
-                startAdornment: <SearchIcon sx={{ color: 'action.active', mr: 1 }} />,
-              }}
-            />
-
+            <Stack direction="row" spacing={2} sx={{ width: '100%' }}>
+              <TextField
+                size="small"
+                placeholder="Search..."
+                variant="outlined"
+                value={searchTerm}
+                onChange={handleSearch}
+                sx={{ 
+                  flexGrow: 1,
+                  maxWidth: { xs: '100%', sm: 300 }
+                }}
+                InputProps={{
+                  startAdornment: <SearchIcon sx={{ color: 'action.active', mr: 1 }} />,
+                }}
+              />
+              <Button
+                variant="contained"
+                startIcon={<AddIcon />}
+                onClick={handleNewCustomer}
+              >
+                Add Customer
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={<FileDownloadIcon />}
+                onClick={() => setOpenImport(true)}
+              >
+                Import
+              </Button>
+            </Stack>
             <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto', gap: 1 }}>
               <FormControlLabel
                 control={
@@ -411,23 +430,21 @@ function Customers() {
             </TableHead>
             <TableBody>
               {filteredCustomers.map((customer) => {
-                const isItemSelected = isSelected(customer.id);
+                const isItemSelected = isSelected(customer._id);
                 
                 return (
                   <TableRow
                     hover
-                    onClick={() => handleSelectCustomer(customer.id)}
-                    role="checkbox"
-                    aria-checked={isItemSelected}
-                    tabIndex={-1}
-                    key={customer.id}
+                    key={customer._id}
                     selected={isItemSelected}
-                    sx={{ cursor: 'pointer' }}
+                    sx={{ cursor: 'default' }}
                   >
                     <TableCell padding="checkbox">
                       <Checkbox
                         color="primary"
                         checked={isItemSelected}
+                        onChange={(event) => handleSelectCustomer(event, customer._id)}
+                        onClick={(event) => event.stopPropagation()}
                       />
                     </TableCell>
                     <TableCell>{customer.accountCode}</TableCell>
@@ -467,6 +484,12 @@ function Customers() {
         onClose={() => setIsFormOpen(false)} 
         customer={selectedCustomer}
         onSave={handleSaveCustomer}
+      />
+      <ImportDialog
+        open={openImport}
+        handleClose={() => setOpenImport(false)}
+        onImportComplete={fetchCustomers}
+        entityType="customers"
       />
     </Box>
   );

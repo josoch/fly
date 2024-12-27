@@ -9,6 +9,7 @@ import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
 import InvoiceForm from './components/InvoiceForm';
 import Customers from './components/Customers';
+import Suppliers from './components/Suppliers';
 
 const theme = createTheme({
   palette: {
@@ -74,6 +75,7 @@ function App() {
               <Route path="/" element={<Dashboard />} />
               <Route path="/invoices/new" element={<InvoiceForm />} />
               <Route path="/customers" element={<Customers />} />
+              <Route path="/suppliers" element={<Suppliers />} />
             </Routes>
           </Box>
         </Box>
