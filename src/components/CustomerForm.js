@@ -48,20 +48,21 @@ function TabPanel(props) {
   );
 }
 
-function CustomerForm({ open, onClose, customer, onSave }) {
+function CustomerForm({ open, onClose, onSave, customer, mode }) {
   const [tabValue, setTabValue] = useState(0);
   const [formData, setFormData] = useState({
     accountCode: '',
     companyName: '',
     companyRegNumber: '',
-    balance: '0.00',
+    balance: 0,
+    creditLimit: 0,
     inactive: false,
     street1: '',
     street2: '',
     town: '',
-    county: '',
+    LGA: '',
     postCode: '',
-    country: 'Nigeria',
+    country: '',
     vatNumber: '',
     contactName: '',
     tradeContact: '',
@@ -69,11 +70,10 @@ function CustomerForm({ open, onClose, customer, onSave }) {
     mobile: '',
     website: '',
     twitter: '',
-    linkedin: '',
     facebook: '',
     email1: '',
     email2: '',
-    sendViaEmail: false,
+    sendViaEmail: false
   });
   const [notes, setNotes] = useState(() => {
     if (customer?.id) {
@@ -96,30 +96,35 @@ function CustomerForm({ open, onClose, customer, onSave }) {
   useEffect(() => {
     if (customer) {
       setFormData({
-        accountCode: customer.accountCode || '',
-        companyName: customer.companyName || '',
-        companyRegNumber: customer.companyRegNumber || '',
-        balance: customer.balance || '0.00',
-        creditLimit: customer.creditLimit || '0.00',
-        inactive: customer.inactive || false,
-        street1: customer.street1 || '',
-        street2: customer.street2 || '',
-        town: customer.town || '',
-        county: customer.county || '',
-        postCode: customer.postCode || '',
-        country: customer.country || 'Nigeria',
-        vatNumber: customer.vatNumber || '',
-        contactName: customer.contactName || '',
-        tradeContact: customer.tradeContact || '',
-        telephone: customer.telephone || '',
-        mobile: customer.mobile || '',
-        website: customer.website || '',
-        twitter: customer.twitter || '',
-        linkedin: customer.linkedin || '',
-        facebook: customer.facebook || '',
-        email1: customer.email1 || '',
-        email2: customer.email2 || '',
-        sendViaEmail: customer.sendViaEmail || false,
+        ...customer,
+        balance: customer.balance || 0,
+        creditLimit: customer.creditLimit || 0
+      });
+    } else {
+      setFormData({
+        accountCode: '',
+        companyName: '',
+        companyRegNumber: '',
+        balance: 0,
+        creditLimit: 0,
+        inactive: false,
+        street1: '',
+        street2: '',
+        town: '',
+        LGA: '',
+        postCode: '',
+        country: '',
+        vatNumber: '',
+        contactName: '',
+        tradeContact: '',
+        telephone: '',
+        mobile: '',
+        website: '',
+        twitter: '',
+        facebook: '',
+        email1: '',
+        email2: '',
+        sendViaEmail: false
       });
     }
   }, [customer]);
@@ -143,13 +148,11 @@ function CustomerForm({ open, onClose, customer, onSave }) {
     }
   }, [files, customer?.id]);
 
-  const handleChange = (event) => {
-    const { name, value, type, checked } = event.target;
-    setFormData(prevData => ({
-      ...prevData,
-      [name]: type === 'checkbox' || type === 'switch' ? checked :
-              name === 'balance' || name === 'creditLimit' ? parseFloat(value || '0.00').toString() :
-              value
+  const handleChange = (e) => {
+    const { name, value, checked, type } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
     }));
   };
 
@@ -195,66 +198,9 @@ function CustomerForm({ open, onClose, customer, onSave }) {
     setFiles(prev => prev.filter(file => file.id !== id));
   };
 
-  const handleSave = async () => {
-    try {
-      // Generate a unique account code if not provided
-      const accountCode = formData.accountCode || `ACC${Date.now()}`;
-      
-      const customerData = {
-        accountCode: accountCode,
-        companyName: formData.companyName || '',
-        companyRegNumber: formData.companyRegNumber || '',
-        balance: parseFloat(formData.balance) || 0,
-        creditLimit: parseFloat(formData.creditLimit) || 0,
-        inactive: Boolean(formData.inactive),
-        street1: formData.street1 || '',
-        street2: formData.street2 || '',
-        town: formData.town || '',
-        county: formData.county || '',
-        postCode: formData.postCode || '',
-        country: formData.country || 'Nigeria',
-        vatNumber: formData.vatNumber || '',
-        contactName: formData.contactName || '',
-        tradeContact: formData.tradeContact || '',
-        telephone: formData.telephone || '',
-        mobile: formData.mobile || '',
-        website: formData.website || '',
-        twitter: formData.twitter || '',
-        facebook: formData.facebook || '',
-        email1: formData.email1 || '',
-        email2: formData.email2 || '',
-        sendViaEmail: Boolean(formData.sendViaEmail),
-        notes: notes.map(note => ({
-          text: note.text,
-          date: note.date
-        }))
-      };
-
-      console.log('Saving customer data:', customerData);
-
-      let response;
-      if (formData.id) {
-        console.log('Updating existing customer:', formData.id);
-        response = await axios.put(`/api/customers/${formData.id}`, customerData);
-      } else {
-        console.log('Creating new customer');
-        response = await axios.post('/api/customers', customerData);
-      }
-
-      console.log('Server response:', response.data);
-      onSave(response.data);
-      onClose();
-    } catch (error) {
-      console.error('Error details:', {
-        message: error.message,
-        response: error.response?.data,
-        status: error.response?.status,
-        data: error.response?.data
-      });
-      
-      const errorMessage = error.response?.data?.message || error.message || 'Please try again.';
-      alert(`Error saving customer: ${errorMessage}`);
-    }
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSave(formData);
   };
 
   const handleClose = () => {
@@ -263,14 +209,15 @@ function CustomerForm({ open, onClose, customer, onSave }) {
       accountCode: '',
       companyName: '',
       companyRegNumber: '',
-      balance: '0.00',
+      balance: 0,
+      creditLimit: 0,
       inactive: false,
       street1: '',
       street2: '',
       town: '',
-      county: '',
+      LGA: '',
       postCode: '',
-      country: 'Nigeria',
+      country: '',
       vatNumber: '',
       contactName: '',
       tradeContact: '',
@@ -278,11 +225,10 @@ function CustomerForm({ open, onClose, customer, onSave }) {
       mobile: '',
       website: '',
       twitter: '',
-      linkedin: '',
       facebook: '',
       email1: '',
       email2: '',
-      sendViaEmail: false,
+      sendViaEmail: false
     });
     setNotes([{ id: 1, text: '', date: new Date().toISOString() }]);
     setFiles([]);
@@ -301,7 +247,7 @@ function CustomerForm({ open, onClose, customer, onSave }) {
         <Box sx={{ display: 'flex', gap: 1 }}>
           <IconButton 
             size="small"
-            onClick={() => window.open(`https://google.com/maps?q=${encodeURIComponent(formData.street1 + ' ' + formData.street2 + ' ' + formData.town + ' ' + formData.county + ' ' + formData.postCode)}`, '_blank')}
+            onClick={() => window.open(`https://google.com/maps?q=${encodeURIComponent(formData.street1 + ' ' + formData.street2 + ' ' + formData.town + ' ' + formData.LGA + ' ' + formData.postCode)}`, '_blank')}
           >
             <GoogleIcon fontSize="small" />
           </IconButton>
@@ -347,16 +293,39 @@ function CustomerForm({ open, onClose, customer, onSave }) {
                     fullWidth
                     label="Company Reg. Number"
                     name="companyRegNumber"
-                    value={formData.companyRegNumber}
+                    value={formData.companyRegNumber || ''}
                     onChange={handleChange}
                   />
                 </Grid>
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
+                    label="VAT Number"
+                    name="vatNumber"
+                    value={formData.vatNumber || ''}
+                    onChange={handleChange}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
+                    label="Credit Limit"
+                    name="creditLimit"
+                    type="number"
+                    value={formData.creditLimit || 0}
+                    onChange={handleChange}
+                    InputProps={{
+                      startAdornment: <InputAdornment position="start">₦</InputAdornment>,
+                    }}
+                  />
+                </Grid>
+                <Grid item xs={12} md={6}>
+                  <TextField
+                    fullWidth
                     label="Balance"
                     name="balance"
-                    value={formData.balance}
+                    type="number"
+                    value={formData.balance || 0}
                     onChange={handleChange}
                     InputProps={{
                       startAdornment: <InputAdornment position="start">₦</InputAdornment>,
@@ -410,9 +379,9 @@ function CustomerForm({ open, onClose, customer, onSave }) {
                 <Grid item xs={12}>
                   <TextField
                     fullWidth
-                    label="County"
-                    name="county"
-                    value={formData.county}
+                    label="LGA"
+                    name="LGA"
+                    value={formData.LGA}
                     onChange={handleChange}
                   />
                 </Grid>
@@ -431,15 +400,6 @@ function CustomerForm({ open, onClose, customer, onSave }) {
                     label="Country"
                     name="country"
                     value={formData.country}
-                    onChange={handleChange}
-                  />
-                </Grid>
-                <Grid item xs={12}>
-                  <TextField
-                    fullWidth
-                    label="VAT Number"
-                    name="vatNumber"
-                    value={formData.vatNumber}
                     onChange={handleChange}
                   />
                 </Grid>
@@ -664,10 +624,10 @@ function CustomerForm({ open, onClose, customer, onSave }) {
       </DialogContent>
 
       <DialogActions>
-        <Button onClick={onClose} color="primary">
+        <Button onClick={handleClose} color="primary">
           Cancel
         </Button>
-        <Button onClick={handleSave} color="primary">
+        <Button onClick={handleSubmit} color="primary">
           Save
         </Button>
       </DialogActions>

@@ -20,6 +20,12 @@ import {
   Tooltip,
   Stack,
   Switch,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ReceiptIcon from '@mui/icons-material/Receipt';
@@ -37,8 +43,11 @@ import ExitToAppIcon from '@mui/icons-material/ExitToApp';
 import CancelIcon from '@mui/icons-material/Cancel';
 import EmailIcon from '@mui/icons-material/Email';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 import CustomerForm from './CustomerForm';
 import ImportDialog from './ImportDialog';
+
+const API_BASE_URL = '/api';
 
 const initialCustomers = [
   {
@@ -67,7 +76,7 @@ function Customers() {
 
   const fetchCustomers = async () => {
     try {
-      const response = await axios.get('/api/customers');
+      const response = await axios.get(`${API_BASE_URL}/customers`);
       setCustomers(response.data);
       setLoading(false);
     } catch (error) {
@@ -85,6 +94,11 @@ function Customers() {
   const [showInactive, setShowInactive] = useState(true);
   const [orderBy, setOrderBy] = useState('companyName');
   const [order, setOrder] = useState('asc');
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [customerToDelete, setCustomerToDelete] = useState(null);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [currentCustomer, setCurrentCustomer] = useState(null);
+  const [formMode, setFormMode] = useState('add');
 
   // Safe string comparison function
   const safeString = (value) => {
@@ -170,7 +184,8 @@ function Customers() {
   };
 
   const handleNewCustomer = () => {
-    setSelectedCustomer(null);
+    setCurrentCustomer(null);
+    setFormMode('add');
     setIsFormOpen(true);
   };
 
@@ -180,32 +195,51 @@ function Customers() {
   };
 
   const handleEditCustomer = (customer) => {
-    setSelectedCustomer(customer);
+    setCurrentCustomer(customer);
+    setFormMode('edit');
     setIsFormOpen(true);
   };
 
-  const handleDeleteCustomers = async () => {
-    if (selectedCustomers.length === 0) return;
-
-    const confirmMessage = selectedCustomers.length === 1
-      ? 'Are you sure you want to delete this customer?'
-      : `Are you sure you want to delete these ${selectedCustomers.length} customers?`;
-
-    if (window.confirm(confirmMessage)) {
-      try {
-        setLoading(true);
-        const deletePromises = selectedCustomers.map(id =>
-          axios.delete(`/api/customers/${id}`)
-        );
-        await Promise.all(deletePromises);
-        await fetchCustomers();
-        setSelectedCustomers([]);
-      } catch (error) {
-        console.error('Error deleting customers:', error);
-        setError('Error deleting customers: ' + error.message);
-      } finally {
-        setLoading(false);
+  const handleSubmitForm = async (formData) => {
+    try {
+      if (formMode === 'edit') {
+        await axios.put(`${API_BASE_URL}/customers/${formData._id}`, formData);
+      } else {
+        await axios.post(`${API_BASE_URL}/customers`, formData);
       }
+      fetchCustomers();
+      setIsFormOpen(false);
+      setCurrentCustomer(null);
+    } catch (error) {
+      console.error('Error saving customer:', error);
+      // You might want to show an error message to the user here
+    }
+  };
+
+  const handleCloseForm = () => {
+    setIsFormOpen(false);
+    setCurrentCustomer(null);
+  };
+
+  const handleDeleteCustomer = async (id) => {
+    try {
+      await axios.delete(`${API_BASE_URL}/customers/${id}`);
+      fetchCustomers(); // Refresh the list after deletion
+      setSelectedCustomers(selectedCustomers.filter(selectedId => selectedId !== id));
+    } catch (error) {
+      console.error('Error deleting customer:', error);
+      // You might want to show an error message to the user here
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    try {
+      await Promise.all(selectedCustomers.map(id => axios.delete(`${API_BASE_URL}/customers/${id}`)));
+      fetchCustomers(); // Refresh the list after deletion
+      setSelectedCustomers([]); // Clear selection after deletion
+    } catch (error) {
+      console.error('Error deleting selected customers:', error);
+      // You might want to show an error message to the user here
     }
   };
 
@@ -218,15 +252,21 @@ function Customers() {
     }
   };
 
-  const handleSelectCustomer = (event, id) => {
-    event.stopPropagation(); // Prevent row click from triggering
+  const handleSelectCustomer = (id) => {
     const selectedIndex = selectedCustomers.indexOf(id);
     let newSelected = [];
 
     if (selectedIndex === -1) {
-      newSelected = [...selectedCustomers, id];
-    } else {
-      newSelected = selectedCustomers.filter((selectedId) => selectedId !== id);
+      newSelected = newSelected.concat(selectedCustomers, id);
+    } else if (selectedIndex === 0) {
+      newSelected = newSelected.concat(selectedCustomers.slice(1));
+    } else if (selectedIndex === selectedCustomers.length - 1) {
+      newSelected = newSelected.concat(selectedCustomers.slice(0, -1));
+    } else if (selectedIndex > 0) {
+      newSelected = newSelected.concat(
+        selectedCustomers.slice(0, selectedIndex),
+        selectedCustomers.slice(selectedIndex + 1)
+      );
     }
 
     setSelectedCustomers(newSelected);
@@ -234,161 +274,176 @@ function Customers() {
 
   const isSelected = (id) => selectedCustomers.indexOf(id) !== -1;
 
+  const handleExportToExcel = () => {
+    // Prepare the data for export
+    const exportData = filteredCustomers.map(customer => ({
+      'Account Code': customer.accountCode || '',
+      'Company Name': customer.companyName || '',
+      'Company Reg Number': customer.companyRegNumber || '',
+      'Balance': customer.balance ? `₦${formatCurrency(customer.balance)}` : '₦0.00',
+      'Credit Limit': customer.creditLimit ? `₦${formatCurrency(customer.creditLimit)}` : '₦0.00',
+      'Inactive': customer.inactive ? 'Yes' : 'No',
+      'Street 1': customer.street1 || '',
+      'Street 2': customer.street2 || '',
+      'Town': customer.town || '',
+      'LGA': customer.LGA || '',
+      'Post Code': customer.postCode || '',
+      'Country': customer.country || '',
+      'VAT Number': customer.vatNumber || '',
+      'Contact Name': customer.contactName || '',
+      'Trade Contact': customer.tradeContact || '',
+      'Telephone': customer.telephone || '',
+      'Mobile': customer.mobile || '',
+      'Website': customer.website || '',
+      'Twitter': customer.twitter || '',
+      'Facebook': customer.facebook || '',
+      'Email 1': customer.email1 || '',
+      'Email 2': customer.email2 || '',
+      'Send Via Email': customer.sendViaEmail ? 'Yes' : 'No'
+    }));
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Customers');
+
+    // Generate filename with current date
+    const date = new Date().toISOString().split('T')[0];
+    const fileName = `customers_${date}.xlsx`;
+
+    // Save the file
+    XLSX.writeFile(wb, fileName);
+  };
+
+  const handleDeleteClick = (e, customer) => {
+    e.stopPropagation();
+    setCustomerToDelete(customer);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleBulkDeleteClick = () => {
+    setBulkDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (customerToDelete) {
+      await handleDeleteCustomer(customerToDelete._id);
+      setDeleteDialogOpen(false);
+      setCustomerToDelete(null);
+    }
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    await handleDeleteSelected();
+    setBulkDeleteDialogOpen(false);
+  };
+
   return (
-    <Box sx={{ p: { xs: 2, sm: 3 } }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       <Paper sx={{ width: '100%', mb: 2 }}>
-        <Box sx={{ 
-          borderBottom: '1px solid rgba(224, 224, 224, 1)',
-          display: 'flex',
-          flexDirection: 'column'
-        }}>
-          {/* First Toolbar Row */}
-          <Toolbar sx={{ 
-            pl: { sm: 2 }, 
+        <Toolbar
+          sx={{
+            pl: { sm: 2 },
             pr: { xs: 1, sm: 1 },
-            display: 'flex',
-            flexWrap: 'wrap',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: { xs: 1, sm: 0 }
+          }}
+        >
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', sm: 'row' },
             gap: 1,
-            minHeight: '48px !important'
+            width: { xs: '100%', sm: 'auto' },
+            mb: { xs: 1, sm: 0 }
           }}>
             <Button
               variant="contained"
-              size="small"
               startIcon={<AddIcon />}
-              sx={{ mr: 1 }}
               onClick={handleNewCustomer}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
-              New/Edit
+              Add Customer
             </Button>
-
             <Button
               variant="contained"
-              size="small"
-              startIcon={<ReceiptIcon />}
-              sx={{ mr: 1 }}
-            >
-              Receipt
-            </Button>
-
-            <Button
-              variant="contained"
-              color="error"
-              size="small"
-              startIcon={<DeleteIcon />}
-              sx={{ mr: 1 }}
-              onClick={handleDeleteCustomers}
-              disabled={selectedCustomers.length === 0}
-            >
-              Delete
-            </Button>
-
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<PrintIcon />}
-              sx={{ mr: 1 }}
-            >
-              Print
-            </Button>
-
-            <Button
-              variant="contained"
-              size="small"
               startIcon={<FileDownloadIcon />}
-              sx={{ mr: 1 }}
+              onClick={handleExportToExcel}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               Excel
             </Button>
-
             <Button
-              variant="contained"
-              size="small"
-              startIcon={<AssessmentIcon />}
-              sx={{ mr: 1 }}
+              variant="outlined"
+              startIcon={<FileDownloadIcon />}
+              onClick={() => setOpenImport(true)}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
-              Reports
+              Import
             </Button>
+          </Box>
 
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<RefreshIcon />}
-              sx={{ mr: 1 }}
-            >
-              Refresh
-            </Button>
-
-            <Button
-              variant="contained"
-              size="small"
-              startIcon={<FilterListIcon />}
-            >
-              Filter
-            </Button>
-          </Toolbar>
-
-          {/* Second Toolbar Row */}
-          <Toolbar sx={{ 
-            pl: { sm: 2 }, 
-            pr: { xs: 1, sm: 1 },
+          <Box sx={{ 
+            flex: 1,
             display: 'flex',
-            flexWrap: 'wrap',
+            flexDirection: { xs: 'column', sm: 'row' },
             gap: 1,
-            borderTop: '1px solid rgba(224, 224, 224, 1)',
-            minHeight: '48px !important'
+            width: { xs: '100%', sm: 'auto' },
+            alignItems: 'center'
           }}>
-            <Stack direction="row" spacing={2} sx={{ width: '100%' }}>
-              <TextField
-                size="small"
-                placeholder="Search..."
-                variant="outlined"
-                value={searchTerm}
-                onChange={handleSearch}
-                sx={{ 
-                  flexGrow: 1,
-                  maxWidth: { xs: '100%', sm: 300 }
-                }}
-                InputProps={{
-                  startAdornment: <SearchIcon sx={{ color: 'action.active', mr: 1 }} />,
-                }}
-              />
-              <Button
-                variant="contained"
-                startIcon={<AddIcon />}
-                onClick={handleNewCustomer}
-              >
-                Add Customer
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<FileDownloadIcon />}
-                onClick={() => setOpenImport(true)}
-              >
-                Import
-              </Button>
-            </Stack>
-            <Box sx={{ display: 'flex', alignItems: 'center', ml: 'auto', gap: 1 }}>
-              <FormControlLabel
-                control={
-                  <Checkbox
-                    checked={showInactive}
-                    onChange={(e) => setShowInactive(e.target.checked)}
-                    size="small"
-                  />
-                }
-                label="Include inactive"
-              />
-            </Box>
-          </Toolbar>
-        </Box>
+            <TextField
+              size="small"
+              placeholder="Search customers..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ 
+                width: { xs: '100%', sm: 200, md: 250 },
+                ml: { sm: 2 }
+              }}
+              InputProps={{
+                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+              }}
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showInactive}
+                  onChange={(e) => setShowInactive(e.target.checked)}
+                  size="small"
+                />
+              }
+              label="Show Inactive"
+              sx={{ ml: { sm: 2 } }}
+            />
+          </Box>
 
-        <TableContainer>
-          <Table sx={{ minWidth: 750 }} size="small">
+          {selectedCustomers.length > 0 && (
+            <Box sx={{ 
+              display: 'flex',
+              gap: 1,
+              width: { xs: '100%', sm: 'auto' },
+              mt: { xs: 1, sm: 0 }
+            }}>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<DeleteIcon />}
+                onClick={handleBulkDeleteClick}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
+              >
+                Delete ({selectedCustomers.length})
+              </Button>
+            </Box>
+          )}
+        </Toolbar>
+
+        <TableContainer sx={{ maxHeight: { xs: 'calc(100vh - 300px)', sm: 'calc(100vh - 250px)' }, overflowY: 'auto' }}>
+          <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox">
                   <Checkbox
-                    color="primary"
                     indeterminate={selectedCustomers.length > 0 && selectedCustomers.length < filteredCustomers.length}
                     checked={filteredCustomers.length > 0 && selectedCustomers.length === filteredCustomers.length}
                     onChange={handleSelectAllClick}
@@ -412,20 +467,12 @@ function Customers() {
                     Name
                   </TableSortLabel>
                 </TableCell>
-                <TableCell>Inactive</TableCell>
-                <TableCell align="right">
-                  <TableSortLabel
-                    active={orderBy === 'balance'}
-                    direction={orderBy === 'balance' ? order : 'asc'}
-                    onClick={() => handleSort('balance')}
-                  >
-                    Balance
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell align="right">Credit Limit</TableCell>
-                <TableCell>Contact</TableCell>
-                <TableCell>Telephone</TableCell>
-                <TableCell align="center">Email Or Print</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Contact</TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Telephone</TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Email</TableCell>
+                <TableCell align="right">Balance</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Status</TableCell>
+                <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -437,40 +484,50 @@ function Customers() {
                     hover
                     key={customer._id}
                     selected={isItemSelected}
-                    sx={{ cursor: 'default' }}
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => handleEditCustomer(customer)}
                   >
                     <TableCell padding="checkbox">
                       <Checkbox
                         color="primary"
                         checked={isItemSelected}
-                        onChange={(event) => handleSelectCustomer(event, customer._id)}
+                        onChange={() => handleSelectCustomer(customer._id)}
                         onClick={(event) => event.stopPropagation()}
                       />
                     </TableCell>
                     <TableCell>{customer.accountCode}</TableCell>
                     <TableCell>{customer.companyName}</TableCell>
-                    <TableCell>
-                      <Checkbox
-                        checked={customer.inactive}
-                        size="small"
-                        disabled
-                      />
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{customer.contactName}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{customer.telephone}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{customer.email1}</TableCell>
+                    <TableCell align="right">₦{formatCurrency(customer.balance)}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                      {customer.inactive ? (
+                        <Chip size="small" label="Inactive" color="error" />
+                      ) : (
+                        <Chip size="small" label="Active" color="success" />
+                      )}
                     </TableCell>
-                    <TableCell align="right">
-                      ₦{formatCurrency(customer.balance)}
-                    </TableCell>
-                    <TableCell align="right">
-                      ₦{formatCurrency(customer.creditLimit)}
-                    </TableCell>
-                    <TableCell>{customer.contactName}</TableCell>
-                    <TableCell>{customer.telephone}</TableCell>
-                    <TableCell align="center">
-                      <IconButton size="small">
-                        <EmailIcon fontSize="small" />
-                      </IconButton>
-                      <IconButton size="small">
-                        <PrintIcon fontSize="small" />
-                      </IconButton>
+                    <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                      <Tooltip title="Edit">
+                        <IconButton 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditCustomer(customer);
+                          }}
+                          size="small"
+                        >
+                          <EditIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
+                      <Tooltip title="Delete">
+                        <IconButton
+                          onClick={(e) => handleDeleteClick(e, customer)}
+                          size="small"
+                        >
+                          <DeleteIcon fontSize="small" />
+                        </IconButton>
+                      </Tooltip>
                     </TableCell>
                   </TableRow>
                 );
@@ -479,11 +536,13 @@ function Customers() {
           </Table>
         </TableContainer>
       </Paper>
+
       <CustomerForm 
         open={isFormOpen} 
-        onClose={() => setIsFormOpen(false)} 
-        customer={selectedCustomer}
-        onSave={handleSaveCustomer}
+        onClose={handleCloseForm} 
+        customer={currentCustomer}
+        onSave={handleSubmitForm}
+        mode={formMode}
       />
       <ImportDialog
         open={openImport}
@@ -491,6 +550,56 @@ function Customers() {
         onImportComplete={fetchCustomers}
         entityType="customers"
       />
+
+      {/* Single Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">
+          Confirm Delete
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            Are you sure you want to delete customer "{customerToDelete?.companyName}"? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog
+        open={bulkDeleteDialogOpen}
+        onClose={() => setBulkDeleteDialogOpen(false)}
+        aria-labelledby="bulk-delete-dialog-title"
+        aria-describedby="bulk-delete-dialog-description"
+      >
+        <DialogTitle id="bulk-delete-dialog-title">
+          Confirm Multiple Delete
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="bulk-delete-dialog-description">
+            Are you sure you want to delete {selectedCustomers.length} selected customer{selectedCustomers.length > 1 ? 's' : ''}? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkDeleteDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleBulkDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

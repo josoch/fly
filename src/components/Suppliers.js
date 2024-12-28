@@ -19,6 +19,13 @@ import {
   Stack,
   Switch,
   Checkbox,
+  FormControlLabel,
+  Chip,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import ReceiptIcon from '@mui/icons-material/Receipt';
@@ -38,7 +45,9 @@ import EmailIcon from '@mui/icons-material/Email';
 import axios from 'axios';
 import SupplierForm from './SupplierForm';
 import ImportDialog from './ImportDialog';
+import * as XLSX from 'xlsx';
 
+const API_BASE_URL = '/api';
 const initialSuppliers = [];
 
 function Suppliers() {
@@ -55,6 +64,9 @@ function Suppliers() {
   const [order, setOrder] = useState('asc');
   const [showInactive, setShowInactive] = useState(false);
   const [selectedSuppliers, setSelectedSuppliers] = useState([]);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [supplierToDelete, setSupplierToDelete] = useState(null);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchSuppliers();
@@ -67,7 +79,7 @@ function Suppliers() {
   const fetchSuppliers = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/suppliers');
+      const response = await axios.get(`${API_BASE_URL}/suppliers`);
       setSuppliers(response.data);
       setError(null);
     } catch (err) {
@@ -119,7 +131,7 @@ function Suppliers() {
   };
 
   const handleAddSupplier = () => {
-    setCurrentSupplier({});
+    setCurrentSupplier(null);
     setFormMode('add');
     setOpenForm(true);
   };
@@ -132,27 +144,29 @@ function Suppliers() {
 
   const handleCloseForm = () => {
     setOpenForm(false);
-    setCurrentSupplier({});
+    setCurrentSupplier(null);
   };
 
-  const handleSubmitForm = async () => {
+  const handleSubmitForm = async (formData) => {
     try {
-      if (formMode === 'add') {
-        await axios.post('/api/suppliers', currentSupplier);
+      if (formMode === 'edit') {
+        await axios.put(`${API_BASE_URL}/suppliers/${formData._id}`, formData);
       } else {
-        await axios.put(`/api/suppliers/${currentSupplier._id}`, currentSupplier);
+        await axios.post(`${API_BASE_URL}/suppliers`, formData);
       }
       fetchSuppliers();
-      handleCloseForm();
-    } catch (err) {
-      setError('Error saving supplier: ' + err.message);
+      setOpenForm(false);
+      setCurrentSupplier(null);
+    } catch (error) {
+      console.error('Error saving supplier:', error);
+      // You might want to show an error message to the user here
     }
   };
 
   const handleDeleteSupplier = async (id) => {
     if (window.confirm('Are you sure you want to delete this supplier?')) {
       try {
-        await axios.delete(`/api/suppliers/${id}`);
+        await axios.delete(`${API_BASE_URL}/suppliers/${id}`);
         fetchSuppliers();
       } catch (err) {
         setError('Error deleting supplier: ' + err.message);
@@ -171,7 +185,7 @@ function Suppliers() {
       try {
         setLoading(true);
         const deletePromises = selectedSuppliers.map(id =>
-          axios.delete(`/api/suppliers/${id}`)
+          axios.delete(`${API_BASE_URL}/suppliers/${id}`)
         );
         await Promise.all(deletePromises);
         setSelectedSuppliers([]);
@@ -206,7 +220,7 @@ function Suppliers() {
     } else if (selectedIndex > 0) {
       newSelected = newSelected.concat(
         selectedSuppliers.slice(0, selectedIndex),
-        selectedSuppliers.slice(selectedIndex + 1),
+        selectedSuppliers.slice(selectedIndex + 1)
       );
     }
 
@@ -221,71 +235,179 @@ function Suppliers() {
     return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
   };
 
+  const handleExportToExcel = () => {
+    // Prepare the data for export
+    const exportData = filteredSuppliers.map(supplier => ({
+      'Account Code': supplier.accountCode || '',
+      'Company Name': supplier.companyName || '',
+      'Company Reg Number': supplier.companyRegNumber || '',
+      'Balance': supplier.balance ? `₦${formatCurrency(supplier.balance)}` : '₦0.00',
+      'Credit Limit': supplier.creditLimit ? `₦${formatCurrency(supplier.creditLimit)}` : '₦0.00',
+      'Inactive': supplier.inactive ? 'Yes' : 'No',
+      'Street 1': supplier.street1 || '',
+      'Street 2': supplier.street2 || '',
+      'Town': supplier.town || '',
+      'County': supplier.county || '',
+      'Post Code': supplier.postCode || '',
+      'Country': supplier.country || '',
+      'VAT Number': supplier.vatNumber || '',
+      'Contact Name': supplier.contactName || '',
+      'Trade Contact': supplier.tradeContact || '',
+      'Telephone': supplier.telephone || '',
+      'Mobile': supplier.mobile || '',
+      'Website': supplier.website || '',
+      'Twitter': supplier.twitter || '',
+      'Facebook': supplier.facebook || '',
+      'Email 1': supplier.email1 || '',
+      'Email 2': supplier.email2 || '',
+      'Send Via Email': supplier.sendViaEmail ? 'Yes' : 'No'
+    }));
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportData);
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, 'Suppliers');
+
+    // Generate filename with current date
+    const date = new Date().toISOString().split('T')[0];
+    const fileName = `suppliers_${date}.xlsx`;
+
+    // Save the file
+    XLSX.writeFile(wb, fileName);
+  };
+
+  const handleDeleteClick = (e, supplier) => {
+    e.stopPropagation();
+    setSupplierToDelete(supplier);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleBulkDeleteClick = () => {
+    setBulkDeleteDialogOpen(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (supplierToDelete) {
+      await handleDeleteSupplier(supplierToDelete._id);
+      setDeleteDialogOpen(false);
+      setSupplierToDelete(null);
+    }
+  };
+
+  const handleBulkDeleteConfirm = async () => {
+    await handleDeleteSelected();
+    setBulkDeleteDialogOpen(false);
+  };
+
   if (loading) return <div>Loading...</div>;
   if (error) return <div>Error: {error}</div>;
 
   return (
-    <Box sx={{ width: '100%' }}>
+    <Box sx={{ p: { xs: 1, sm: 2, md: 3 } }}>
       <Paper sx={{ width: '100%', mb: 2 }}>
-        <Toolbar sx={{ pl: { sm: 2 }, pr: { xs: 1, sm: 1 } }}>
-          <Stack direction="row" spacing={2} sx={{ width: '100%' }}>
-            <TextField
-              size="small"
-              placeholder="Search suppliers..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: <SearchIcon sx={{ mr: 1 }} />,
-              }}
-            />
+        <Toolbar
+          sx={{
+            pl: { sm: 2 },
+            pr: { xs: 1, sm: 1 },
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: { xs: 1, sm: 0 }
+          }}
+        >
+          <Box sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: 1,
+            width: { xs: '100%', sm: 'auto' },
+            mb: { xs: 1, sm: 0 }
+          }}>
             <Button
               variant="contained"
               startIcon={<AddIcon />}
               onClick={handleAddSupplier}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               Add Supplier
+            </Button>
+            <Button
+              variant="contained"
+              startIcon={<FileDownloadIcon />}
+              onClick={handleExportToExcel}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
+            >
+              Excel
             </Button>
             <Button
               variant="outlined"
               startIcon={<FileDownloadIcon />}
               onClick={() => setOpenImport(true)}
+              sx={{ width: { xs: '100%', sm: 'auto' } }}
             >
               Import
             </Button>
-            <Button
-              variant="outlined"
-              startIcon={<RefreshIcon />}
-              onClick={fetchSuppliers}
-            >
-              Refresh
-            </Button>
-            <Button
-              variant="outlined"
-              startIcon={<FilterListIcon />}
-              onClick={() => setShowInactive(!showInactive)}
-            >
-              {showInactive ? 'Hide Inactive' : 'Show Inactive'}
-            </Button>
-            {selectedSuppliers.length > 0 && (
+          </Box>
+
+          <Box sx={{ 
+            flex: 1,
+            display: 'flex',
+            flexDirection: { xs: 'column', sm: 'row' },
+            gap: 1,
+            width: { xs: '100%', sm: 'auto' },
+            alignItems: 'center'
+          }}>
+            <TextField
+              size="small"
+              placeholder="Search suppliers..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              sx={{ 
+                width: { xs: '100%', sm: 200, md: 250 },
+                ml: { sm: 2 }
+              }}
+              InputProps={{
+                startAdornment: <SearchIcon sx={{ mr: 1, color: 'text.secondary' }} />
+              }}
+            />
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showInactive}
+                  onChange={(e) => setShowInactive(e.target.checked)}
+                  size="small"
+                />
+              }
+              label="Show Inactive"
+              sx={{ ml: { sm: 2 } }}
+            />
+          </Box>
+
+          {selectedSuppliers.length > 0 && (
+            <Box sx={{ 
+              display: 'flex',
+              gap: 1,
+              width: { xs: '100%', sm: 'auto' },
+              mt: { xs: 1, sm: 0 }
+            }}>
               <Button
                 variant="outlined"
                 color="error"
                 startIcon={<DeleteIcon />}
-                onClick={handleDeleteSelected}
+                onClick={handleBulkDeleteClick}
+                sx={{ width: { xs: '100%', sm: 'auto' } }}
               >
                 Delete ({selectedSuppliers.length})
               </Button>
-            )}
-          </Stack>
+            </Box>
+          )}
         </Toolbar>
-        <Divider />
-        <TableContainer>
-          <Table sx={{ minWidth: 750 }} aria-labelledby="tableTitle">
+
+        <TableContainer sx={{ maxHeight: { xs: 'calc(100vh - 300px)', sm: 'calc(100vh - 250px)' }, overflowY: 'auto' }}>
+          <Table stickyHeader size="small">
             <TableHead>
               <TableRow>
                 <TableCell padding="checkbox">
                   <Checkbox
-                    color="primary"
                     indeterminate={selectedSuppliers.length > 0 && selectedSuppliers.length < filteredSuppliers.length}
                     checked={filteredSuppliers.length > 0 && selectedSuppliers.length === filteredSuppliers.length}
                     onChange={handleSelectAll}
@@ -297,7 +419,7 @@ function Suppliers() {
                     direction={orderBy === 'accountCode' ? order : 'asc'}
                     onClick={() => handleSort('accountCode')}
                   >
-                    Account Code
+                    A/C
                   </TableSortLabel>
                 </TableCell>
                 <TableCell>
@@ -306,23 +428,15 @@ function Suppliers() {
                     direction={orderBy === 'companyName' ? order : 'asc'}
                     onClick={() => handleSort('companyName')}
                   >
-                    Company Name
+                    Name
                   </TableSortLabel>
                 </TableCell>
-                <TableCell>Contact Name</TableCell>
-                <TableCell>Telephone</TableCell>
-                <TableCell>Email</TableCell>
-                <TableCell align="right">
-                  <TableSortLabel
-                    active={orderBy === 'balance'}
-                    direction={orderBy === 'balance' ? order : 'asc'}
-                    onClick={() => handleSort('balance')}
-                  >
-                    Balance
-                  </TableSortLabel>
-                </TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell align="right">Actions</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Contact</TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Telephone</TableCell>
+                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Email</TableCell>
+                <TableCell align="right">Balance</TableCell>
+                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Status</TableCell>
+                <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -333,39 +447,48 @@ function Suppliers() {
                     hover
                     key={supplier._id}
                     selected={isItemSelected}
-                    sx={{ '&:last-child td, &:last-child th': { border: 0 } }}
+                    sx={{ cursor: 'pointer' }}
+                    onClick={() => handleEditSupplier(supplier)}
                   >
                     <TableCell padding="checkbox">
                       <Checkbox
                         color="primary"
                         checked={isItemSelected}
                         onChange={() => handleSelectSupplier(supplier._id)}
+                        onClick={(event) => event.stopPropagation()}
                       />
                     </TableCell>
                     <TableCell>{supplier.accountCode}</TableCell>
                     <TableCell>{supplier.companyName}</TableCell>
-                    <TableCell>{supplier.contactName}</TableCell>
-                    <TableCell>{supplier.telephone}</TableCell>
-                    <TableCell>{supplier.email1}</TableCell>
-                    <TableCell align="right">
-                      ₦{formatCurrency(supplier.balance)}
-                    </TableCell>
-                    <TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{supplier.contactName}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{supplier.telephone}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{supplier.email1}</TableCell>
+                    <TableCell align="right">₦{formatCurrency(supplier.balance)}</TableCell>
+                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                       {supplier.inactive ? (
-                        <Typography color="error">Inactive</Typography>
+                        <Chip size="small" label="Inactive" color="error" />
                       ) : (
-                        <Typography color="success">Active</Typography>
+                        <Chip size="small" label="Active" color="success" />
                       )}
                     </TableCell>
-                    <TableCell align="right">
+                    <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                       <Tooltip title="Edit">
-                        <IconButton onClick={() => handleEditSupplier(supplier)}>
-                          <EditIcon />
+                        <IconButton 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleEditSupplier(supplier);
+                          }}
+                          size="small"
+                        >
+                          <EditIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                       <Tooltip title="Delete">
-                        <IconButton onClick={() => handleDeleteSupplier(supplier._id)}>
-                          <DeleteIcon />
+                        <IconButton
+                          onClick={(e) => handleDeleteClick(e, supplier)}
+                          size="small"
+                        >
+                          <DeleteIcon fontSize="small" />
                         </IconButton>
                       </Tooltip>
                     </TableCell>
@@ -379,10 +502,9 @@ function Suppliers() {
 
       <SupplierForm
         open={openForm}
-        handleClose={handleCloseForm}
-        handleSubmit={handleSubmitForm}
+        onClose={handleCloseForm}
+        onSubmit={handleSubmitForm}
         supplier={currentSupplier}
-        setSupplier={setCurrentSupplier}
         mode={formMode}
       />
 
@@ -392,6 +514,56 @@ function Suppliers() {
         onImportComplete={fetchSuppliers}
         entityType="suppliers"
       />
+
+      {/* Single Delete Confirmation Dialog */}
+      <Dialog
+        open={deleteDialogOpen}
+        onClose={() => setDeleteDialogOpen(false)}
+        aria-labelledby="delete-dialog-title"
+        aria-describedby="delete-dialog-description"
+      >
+        <DialogTitle id="delete-dialog-title">
+          Confirm Delete
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="delete-dialog-description">
+            Are you sure you want to delete supplier "{supplierToDelete?.companyName}"? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <Dialog
+        open={bulkDeleteDialogOpen}
+        onClose={() => setBulkDeleteDialogOpen(false)}
+        aria-labelledby="bulk-delete-dialog-title"
+        aria-describedby="bulk-delete-dialog-description"
+      >
+        <DialogTitle id="bulk-delete-dialog-title">
+          Confirm Multiple Delete
+        </DialogTitle>
+        <DialogContent>
+          <DialogContentText id="bulk-delete-dialog-description">
+            Are you sure you want to delete {selectedSuppliers.length} selected supplier{selectedSuppliers.length > 1 ? 's' : ''}? This action cannot be undone.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setBulkDeleteDialogOpen(false)} color="primary">
+            Cancel
+          </Button>
+          <Button onClick={handleBulkDeleteConfirm} color="error" variant="contained">
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

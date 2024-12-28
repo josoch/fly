@@ -1,19 +1,33 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   AppBar,
   Toolbar,
-  Typography,
   IconButton,
-  InputBase,
-  Box,
-  Avatar,
+  Typography,
+  Button,
   useTheme,
   useMediaQuery,
+  Menu,
+  MenuItem,
+  ListItemIcon,
+  ListItemText,
+  Box,
+  Avatar,
 } from '@mui/material';
-import { styled } from '@mui/material/styles';
 import MenuIcon from '@mui/icons-material/Menu';
 import SearchIcon from '@mui/icons-material/Search';
 import NotificationsIcon from '@mui/icons-material/Notifications';
+import DashboardIcon from '@mui/icons-material/Dashboard';
+import PeopleIcon from '@mui/icons-material/People';
+import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import ReceiptIcon from '@mui/icons-material/Receipt';
+import PaymentsIcon from '@mui/icons-material/Payments';
+import ContactsIcon from '@mui/icons-material/Contacts';
+import QueryStatsIcon from '@mui/icons-material/QueryStats';
+import AssessmentIcon from '@mui/icons-material/Assessment';
+import GroupsIcon from '@mui/icons-material/Groups';
+import { styled } from '@mui/material/styles';
+import { useNavigate } from 'react-router-dom';
 
 const Search = styled('div')(({ theme }) => ({
   position: 'relative',
@@ -41,7 +55,7 @@ const SearchIconWrapper = styled('div')(({ theme }) => ({
   justifyContent: 'center',
 }));
 
-const StyledInputBase = styled(InputBase)(({ theme }) => ({
+const StyledInputBase = styled('input')(({ theme }) => ({
   color: 'inherit',
   '& .MuiInputBase-input': {
     padding: theme.spacing(1, 1, 1, 0),
@@ -54,9 +68,23 @@ const StyledInputBase = styled(InputBase)(({ theme }) => ({
   },
 }));
 
-function Navbar({ onMenuClick }) {
+const Navbar = () => {
+  const navigate = useNavigate();
+  const [anchorEl, setAnchorEl] = useState(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
+
+  const modules = [
+    { name: 'Home', icon: <DashboardIcon />, path: '/' },
+    { name: 'Invoices', icon: <ReceiptIcon />, path: '/invoices' },
+    { name: 'Transactions', icon: <PaymentsIcon />, path: '/transactions' },
+    { name: 'Reports', icon: <AssessmentIcon />, path: '/reports' },
+    { name: 'Customers', icon: <PeopleIcon />, path: '/customers' },
+    { name: 'Suppliers', icon: <LocalShippingIcon />, path: '/suppliers' },
+    { name: 'Contacts', icon: <ContactsIcon />, path: '/contacts' },
+    { name: 'Chart', icon: <QueryStatsIcon />, path: '/chart' },
+    { name: 'Team', icon: <GroupsIcon />, path: '/team' },
+  ];
 
   return (
     <AppBar position="fixed" sx={{ zIndex: theme.zIndex.drawer + 1 }}>
@@ -65,7 +93,7 @@ function Navbar({ onMenuClick }) {
           color="inherit"
           aria-label="open drawer"
           edge="start"
-          onClick={onMenuClick}
+          onClick={() => navigate('/')}
           sx={{ mr: 2, display: { sm: 'none' } }}
         >
           <MenuIcon />
@@ -77,7 +105,7 @@ function Navbar({ onMenuClick }) {
           component="div"
           sx={{ display: { xs: 'none', sm: 'block' } }}
         >
-          ZipBooks
+          XeroZero Books
         </Typography>
 
         <Search sx={{ display: { xs: isMobile ? 'none' : 'flex', sm: 'flex' } }}>

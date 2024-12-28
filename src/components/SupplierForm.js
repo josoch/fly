@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -11,19 +11,85 @@ import {
   Switch,
   Divider,
   Typography,
+  InputAdornment
 } from '@mui/material';
 
-const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, mode }) => {
+const SupplierForm = ({ open, onClose, onSubmit, supplier, mode }) => {
+  const [formData, setFormData] = useState({
+    accountCode: '',
+    companyName: '',
+    companyRegNumber: '',
+    balance: 0,
+    creditLimit: 0,
+    inactive: false,
+    street1: '',
+    street2: '',
+    town: '',
+    LGA: '',
+    postCode: '',
+    country: '',
+    vatNumber: '',
+    contactName: '',
+    tradeContact: '',
+    telephone: '',
+    mobile: '',
+    website: '',
+    twitter: '',
+    facebook: '',
+    email1: '',
+    email2: '',
+    sendViaEmail: false
+  });
+
+  useEffect(() => {
+    if (supplier) {
+      setFormData(supplier);
+    } else {
+      setFormData({
+        accountCode: '',
+        companyName: '',
+        companyRegNumber: '',
+        balance: 0,
+        creditLimit: 0,
+        inactive: false,
+        street1: '',
+        street2: '',
+        town: '',
+        LGA: '',
+        postCode: '',
+        country: '',
+        vatNumber: '',
+        contactName: '',
+        tradeContact: '',
+        telephone: '',
+        mobile: '',
+        website: '',
+        twitter: '',
+        facebook: '',
+        email1: '',
+        email2: '',
+        sendViaEmail: false
+      });
+    }
+  }, [supplier]);
+
   const handleChange = (e) => {
-    const { name, value, checked } = e.target;
-    setSupplier(prev => ({
+    const { name, value, checked, type } = e.target;
+    setFormData(prev => ({
       ...prev,
-      [name]: e.target.type === 'checkbox' ? checked : value
+      [name]: type === 'checkbox' ? checked :
+              (name === 'balance' || name === 'creditLimit') ? parseFloat(value) || 0 :
+              value
     }));
   };
 
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    onSubmit(formData);
+  };
+
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="md" fullWidth>
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth>
       <DialogTitle>{mode === 'add' ? 'Add New Supplier' : 'Edit Supplier'}</DialogTitle>
       <DialogContent>
         <Grid container spacing={2} sx={{ mt: 1 }}>
@@ -36,7 +102,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Account Code"
               name="accountCode"
-              value={supplier.accountCode || ''}
+              value={formData.accountCode || ''}
               onChange={handleChange}
               required
             />
@@ -46,7 +112,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Company Name"
               name="companyName"
-              value={supplier.companyName || ''}
+              value={formData.companyName || ''}
               onChange={handleChange}
               required
             />
@@ -56,7 +122,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Company Registration Number"
               name="companyRegNumber"
-              value={supplier.companyRegNumber || ''}
+              value={formData.companyRegNumber || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -65,8 +131,34 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="VAT Number"
               name="vatNumber"
-              value={supplier.vatNumber || ''}
+              value={formData.vatNumber || ''}
               onChange={handleChange}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Credit Limit"
+              name="creditLimit"
+              type="number"
+              value={formData.creditLimit || 0}
+              onChange={handleChange}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">₦</InputAdornment>,
+              }}
+            />
+          </Grid>
+          <Grid item xs={12} md={6}>
+            <TextField
+              fullWidth
+              label="Balance"
+              name="balance"
+              type="number"
+              value={formData.balance || 0}
+              onChange={handleChange}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">₦</InputAdornment>,
+              }}
             />
           </Grid>
 
@@ -79,7 +171,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Street Address 1"
               name="street1"
-              value={supplier.street1 || ''}
+              value={formData.street1 || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -88,7 +180,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Street Address 2"
               name="street2"
-              value={supplier.street2 || ''}
+              value={formData.street2 || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -97,16 +189,16 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Town"
               name="town"
-              value={supplier.town || ''}
+              value={formData.town || ''}
               onChange={handleChange}
             />
           </Grid>
           <Grid item xs={12} md={6}>
             <TextField
               fullWidth
-              label="County"
-              name="county"
-              value={supplier.county || ''}
+              label="LGA"
+              name="LGA"
+              value={formData.LGA || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -115,7 +207,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Post Code"
               name="postCode"
-              value={supplier.postCode || ''}
+              value={formData.postCode || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -124,7 +216,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Country"
               name="country"
-              value={supplier.country || ''}
+              value={formData.country || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -138,7 +230,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Contact Name"
               name="contactName"
-              value={supplier.contactName || ''}
+              value={formData.contactName || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -147,7 +239,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Trade Contact"
               name="tradeContact"
-              value={supplier.tradeContact || ''}
+              value={formData.tradeContact || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -156,7 +248,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Telephone"
               name="telephone"
-              value={supplier.telephone || ''}
+              value={formData.telephone || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -165,7 +257,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Mobile"
               name="mobile"
-              value={supplier.mobile || ''}
+              value={formData.mobile || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -175,7 +267,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               label="Email 1"
               name="email1"
               type="email"
-              value={supplier.email1 || ''}
+              value={formData.email1 || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -185,7 +277,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               label="Email 2"
               name="email2"
               type="email"
-              value={supplier.email2 || ''}
+              value={formData.email2 || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -199,7 +291,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Website"
               name="website"
-              value={supplier.website || ''}
+              value={formData.website || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -208,7 +300,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Twitter"
               name="twitter"
-              value={supplier.twitter || ''}
+              value={formData.twitter || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -217,7 +309,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
               fullWidth
               label="Facebook"
               name="facebook"
-              value={supplier.facebook || ''}
+              value={formData.facebook || ''}
               onChange={handleChange}
             />
           </Grid>
@@ -230,7 +322,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
             <FormControlLabel
               control={
                 <Switch
-                  checked={supplier.inactive || false}
+                  checked={formData.inactive || false}
                   onChange={handleChange}
                   name="inactive"
                 />
@@ -242,7 +334,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
             <FormControlLabel
               control={
                 <Switch
-                  checked={supplier.sendViaEmail || false}
+                  checked={formData.sendViaEmail || false}
                   onChange={handleChange}
                   name="sendViaEmail"
                 />
@@ -253,7 +345,7 @@ const SupplierForm = ({ open, handleClose, handleSubmit, supplier, setSupplier, 
         </Grid>
       </DialogContent>
       <DialogActions>
-        <Button onClick={handleClose}>Cancel</Button>
+        <Button onClick={onClose}>Cancel</Button>
         <Button onClick={handleSubmit} variant="contained" color="primary">
           {mode === 'add' ? 'Add Supplier' : 'Update Supplier'}
         </Button>

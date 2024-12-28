@@ -10,6 +10,12 @@ import Sidebar from './components/Sidebar';
 import InvoiceForm from './components/InvoiceForm';
 import Customers from './components/Customers';
 import Suppliers from './components/Suppliers';
+import Chart from './components/Chart';
+import Invoices from './components/Invoices';
+import Receipts from './components/Receipts';
+import Payments from './components/Payments';
+import ReceiptForm from './components/ReceiptForm';
+import PaymentForm from './components/PaymentForm';
 
 const theme = createTheme({
   palette: {
@@ -73,9 +79,16 @@ function App() {
           >
             <Routes>
               <Route path="/" element={<Dashboard />} />
-              <Route path="/invoices/new" element={<InvoiceForm />} />
               <Route path="/customers" element={<Customers />} />
               <Route path="/suppliers" element={<Suppliers />} />
+              <Route path="/chart" element={<Chart />} />
+              <Route path="/invoices" element={<Invoices />} />
+              <Route path="/receipts" element={<Receipts />} />
+              <Route path="/receipts/new" element={<ReceiptForm />} />
+              <Route path="/receipts/edit/:id" element={<ReceiptForm />} />
+              <Route path="/payments" element={<Payments />} />
+              <Route path="/payments/new" element={<PaymentForm />} />
+              <Route path="/payments/edit/:id" element={<PaymentForm />} />
             </Routes>
           </Box>
         </Box>

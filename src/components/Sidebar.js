@@ -31,7 +31,7 @@ const menuItems = [
   { text: 'Customers', icon: <BusinessIcon />, path: '/customers' },
   { text: 'Suppliers', icon: <LocalShippingIcon />, path: '/suppliers' },
   { text: 'Contacts', icon: <ContactsIcon />, path: '/contacts' },
-  { text: 'Time Tracking', icon: <TimerIcon />, path: '/tracking' },
+  { text: 'Chart', icon: <TimerIcon />, path: '/chart' },
   { text: 'Team', icon: <PeopleIcon />, path: '/team' },
 ];
 

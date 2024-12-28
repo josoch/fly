@@ -11,26 +11,24 @@ import {
   Alert,
   AlertTitle,
   Link,
-  Menu,
-  MenuItem,
 } from '@mui/material';
 import CloudUploadIcon from '@mui/icons-material/CloudUpload';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import axios from 'axios';
+import * as XLSX from 'xlsx';
 
 const ImportDialog = ({ open, handleClose, onImportComplete, entityType }) => {
   const [selectedFile, setSelectedFile] = useState(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState(null);
   const [results, setResults] = useState(null);
-  const [downloadMenuAnchor, setDownloadMenuAnchor] = useState(null);
 
   const handleFileSelect = (event) => {
     const file = event.target.files[0];
     if (file) {
       const fileType = file.name.split('.').pop().toLowerCase();
-      if (!['csv', 'xls', 'xlsx'].includes(fileType)) {
-        setError('Invalid file type. Only CSV and Excel files are allowed.');
+      if (!['xls', 'xlsx'].includes(fileType)) {
+        setError('Invalid file type. Only Excel files are allowed.');
         return;
       }
       setSelectedFile(file);
@@ -48,156 +46,125 @@ const ImportDialog = ({ open, handleClose, onImportComplete, entityType }) => {
     setError(null);
     setResults(null);
 
-    const formData = new FormData();
-    formData.append('file', selectedFile);
-
     try {
-      const response = await axios.post(`/api/${entityType}/import`, formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-      });
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        try {
+          const workbook = XLSX.read(e.target.result, { type: 'binary' });
+          const sheetName = workbook.SheetNames[0];
+          const worksheet = workbook.Sheets[sheetName];
+          const data = XLSX.utils.sheet_to_json(worksheet);
 
-      setResults(response.data.results);
-      if (response.data.results.success > 0) {
-        onImportComplete();
-      }
+          // Validate required columns
+          if (data.length === 0) {
+            throw new Error('File is empty');
+          }
+
+          const requiredColumns = ['Account Code', 'Account Name', 'Account Type', 'Balance'];
+          const headers = Object.keys(data[0]);
+          const missingColumns = requiredColumns.filter(col => !headers.includes(col));
+
+          if (missingColumns.length > 0) {
+            throw new Error(`Missing required columns: ${missingColumns.join(', ')}`);
+          }
+
+          // Validate data types and required fields
+          const validTypes = [
+            'Income',
+            'Expense',
+            'Fixed Asset',
+            'Bank',
+            'Capital',
+            'Debtor',
+            'Creditor',
+            'Other Asset',
+            'Other Current Asset',
+            'Other Current Liability',
+            'Long Term Liability',
+            'Cost of Goods Sold',
+            'Other Income',
+            'Other Expense'
+          ];
+          const errors = [];
+
+          data.forEach((row, index) => {
+            if (!row['Account Code'] || !row['Account Name'] || !row['Account Type']) {
+              errors.push(`Row ${index + 1}: Account Code, Account Name, and Account Type are required`);
+            }
+
+            if (!validTypes.includes(row['Account Type'])) {
+              errors.push(`Row ${index + 1}: Invalid Account Type. Must be one of: ${validTypes.join(', ')}`);
+            }
+
+            if (isNaN(parseFloat(row['Balance']))) {
+              errors.push(`Row ${index + 1}: Balance must be a number`);
+            }
+          });
+
+          if (errors.length > 0) {
+            throw new Error('Validation errors:\n' + errors.join('\n'));
+          }
+
+          // Send data to API
+          const response = await axios.post(`/api/${entityType}/import`, data);
+          setResults({
+            success: response.data.success || data.length,
+            failed: response.data.failed || 0,
+            errors: response.data.errors
+          });
+          if (response.data.success > 0) {
+            onImportComplete();
+          }
+        } catch (err) {
+          throw new Error(err.message);
+        }
+      };
+      reader.readAsBinaryString(selectedFile);
     } catch (error) {
-      setError(error.response?.data?.message || 'Error uploading file');
-      if (error.response?.data?.errors) {
-        setResults({ errors: error.response.data.errors });
-      }
+      setError(error.message);
     } finally {
       setUploading(false);
     }
   };
 
-  const getSampleData = () => {
-    // Sample data that will pass all validations
-    return [
-      {
-        accountCode: 'ACC001',
-        companyName: 'Sample Company Ltd',
-        companyRegNumber: 'REG123456',
-        balance: '5000.00',
-        inactive: 'false',
-        street1: '123 Business Street',
-        street2: 'Suite 456',
-        town: 'Business Town',
-        county: 'Business County',
-        postCode: 'BT1 1BT',
-        country: 'Nigeria',
-        vatNumber: 'VAT123456',
-        contactName: 'John Smith',
-        tradeContact: 'Jane Doe',
-        telephone: '01234567890',
-        mobile: '07700900000',
-        website: 'www.samplecompany.com',
-        twitter: '@samplecompany',
-        facebook: 'samplecompany',
-        email1: 'contact@samplecompany.com',
-        email2: 'support@samplecompany.com',
-        sendViaEmail: 'true'
-      },
-      {
-        accountCode: 'ACC002',
-        companyName: 'Test Enterprise Inc',
-        companyRegNumber: 'REG789012',
-        balance: '7500.00',
-        inactive: 'false',
-        street1: '456 Corporate Avenue',
-        street2: 'Floor 7',
-        town: 'Business City',
-        county: 'Corporate County',
-        postCode: 'BC2 2BC',
-        country: 'Nigeria',
-        vatNumber: 'VAT789012',
-        contactName: 'Sarah Johnson',
-        tradeContact: 'Mike Wilson',
-        telephone: '01234567891',
-        mobile: '07700900001',
-        website: 'www.testenterprise.com',
-        twitter: '@testenterprise',
-        facebook: 'testenterprise',
-        email1: 'info@testenterprise.com',
-        email2: 'sales@testenterprise.com',
-        sendViaEmail: 'true'
-      }
+  const handleDownloadTemplate = () => {
+    // Create template with headers and sample data
+    const headers = ['Account Code', 'Account Name', 'Account Type', 'Balance'];
+    const sampleData = [
+      ['1000', 'Cash in Bank', 'Bank', '0'],
+      ['1100', 'Accounts Receivable', 'Debtor', '0'],
+      ['2000', 'Accounts Payable', 'Creditor', '0'],
+      ['3000', 'Share Capital', 'Capital', '0'],
+      ['4000', 'Sales Revenue', 'Income', '0'],
+      ['5000', 'Cost of Sales', 'Cost of Goods Sold', '0'],
+      ['6000', 'Salaries Expense', 'Expense', '0'],
+      ['1200', 'Office Equipment', 'Fixed Asset', '0']
     ];
-  };
 
-  const handleDownloadTemplate = (format) => {
-    const sampleData = getSampleData();
-    let content;
-    let mimeType;
-    let fileExtension;
-
-    if (format === 'csv') {
-      // Create CSV content
-      const headers = Object.keys(sampleData[0]).join(',');
-      const rows = sampleData.map(row => Object.values(row).join(','));
-      content = [headers, ...rows].join('\n');
-      mimeType = 'text/csv';
-      fileExtension = 'csv';
-    } else {
-      // Create Excel-like content (CSV for now, but could be enhanced with actual Excel creation)
-      const headers = Object.keys(sampleData[0]).join(',');
-      const rows = sampleData.map(row => Object.values(row).join(','));
-      content = [headers, ...rows].join('\n');
-      mimeType = 'text/csv';
-      fileExtension = 'csv';
-    }
-
-    // Create and download the file
-    const blob = new Blob([content], { type: mimeType });
-    const url = window.URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `${entityType}_template_with_sample_data.${fileExtension}`;
-    document.body.appendChild(a);
-    a.click();
-    window.URL.revokeObjectURL(url);
-    document.body.removeChild(a);
-    setDownloadMenuAnchor(null);
-  };
-
-  const handleDownloadClick = (event) => {
-    setDownloadMenuAnchor(event.currentTarget);
-  };
-
-  const handleDownloadMenuClose = () => {
-    setDownloadMenuAnchor(null);
+    const ws = XLSX.utils.aoa_to_sheet([headers, ...sampleData]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Template');
+    
+    XLSX.writeFile(wb, `${entityType}_import_template.xlsx`);
   };
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Import {entityType.charAt(0).toUpperCase() + entityType.slice(1)}</DialogTitle>
+      <DialogTitle>Import Chart of Accounts</DialogTitle>
       <DialogContent>
         <Box sx={{ mb: 2 }}>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Upload a CSV or Excel file containing your {entityType} data.
-            Make sure to include the required fields: Account Code and Company Name.
+            Upload an Excel file containing your Chart of Accounts data.
+            Required fields: Account Code, Account Name, Account Type, and Balance.
           </Typography>
           <Box sx={{ mt: 2, mb: 2 }}>
             <Button
               variant="outlined"
               startIcon={<FileDownloadIcon />}
-              onClick={handleDownloadClick}
+              onClick={handleDownloadTemplate}
             >
               Download Template
             </Button>
-            <Menu
-              anchorEl={downloadMenuAnchor}
-              open={Boolean(downloadMenuAnchor)}
-              onClose={handleDownloadMenuClose}
-            >
-              <MenuItem onClick={() => handleDownloadTemplate('empty')}>
-                Empty Template
-              </MenuItem>
-              <MenuItem onClick={() => handleDownloadTemplate('sample')}>
-                Template with Sample Data
-              </MenuItem>
-            </Menu>
           </Box>
         </Box>
 
@@ -218,7 +185,7 @@ const ImportDialog = ({ open, handleClose, onImportComplete, entityType }) => {
           <input
             type="file"
             id="file-input"
-            accept=".csv,.xls,.xlsx"
+            accept=".xls,.xlsx"
             style={{ display: 'none' }}
             onChange={handleFileSelect}
           />
@@ -227,7 +194,7 @@ const ImportDialog = ({ open, handleClose, onImportComplete, entityType }) => {
             {selectedFile ? selectedFile.name : 'Click to select file or drag and drop'}
           </Typography>
           <Typography variant="body2" color="text.secondary">
-            Supported formats: CSV, XLS, XLSX
+            Supported formats: XLS, XLSX
           </Typography>
         </Box>
 
@@ -251,6 +218,7 @@ const ImportDialog = ({ open, handleClose, onImportComplete, entityType }) => {
               Successfully imported: {results.success}
               {results.failed > 0 && ` | Failed: ${results.failed}`}
             </Typography>
+
             {results.errors && results.errors.length > 0 && (
               <Box sx={{ mt: 1 }}>
                 <Typography variant="body2" gutterBottom>Errors:</Typography>
