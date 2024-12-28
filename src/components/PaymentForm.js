@@ -22,20 +22,26 @@ const PaymentForm = () => {
   const { id } = useParams();
   const [loading, setLoading] = useState(false);
   const [suppliers, setSuppliers] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [formData, setFormData] = useState({
-    paymentNumber: '',
     date: new Date().toISOString().split('T')[0],
+    reference: '',
+    name: '',
+    account: '',
+    bank: '',
+    description: '',
+    paymentMethod: '',
+    amount: '',
+    paymentNumber: '',
     supplierId: '',
     supplierName: '',
-    description: '',
-    amount: '',
-    paymentMethod: '',
-    reference: '',
     status: 'Draft'
   });
 
   useEffect(() => {
     fetchSuppliers();
+    fetchAccounts();
     if (id) {
       fetchPayment();
     }
@@ -54,6 +60,22 @@ const PaymentForm = () => {
       setSuppliers(formattedSuppliers);
     } catch (error) {
       console.error('Error fetching suppliers:', error);
+    }
+  };
+
+  const fetchAccounts = async () => {
+    try {
+      const response = await axios.get(`${API_BASE_URL}/accounts`);
+      const allAccounts = response.data;
+      
+      // Filter bank accounts (assuming they have codes starting with 1001 for Cash in Bank)
+      const banks = allAccounts.filter(acc => acc.code.startsWith('1001'));
+      const regularAccounts = allAccounts.filter(acc => !acc.code.startsWith('1001'));
+      
+      setBankAccounts(banks);
+      setAccounts(regularAccounts);
+    } catch (error) {
+      console.error('Error fetching accounts:', error);
     }
   };
 
@@ -136,6 +158,40 @@ const PaymentForm = () => {
                 onChange={handleChange}
                 required
               />
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Account"
+                name="account"
+                value={formData.account}
+                onChange={handleChange}
+                required
+              >
+                {accounts.map((account) => (
+                  <MenuItem key={account._id} value={account._id}>
+                    {account.code} - {account.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Bank Account"
+                name="bank"
+                value={formData.bank}
+                onChange={handleChange}
+                required
+              >
+                {bankAccounts.map((account) => (
+                  <MenuItem key={account._id} value={account._id}>
+                    {account.code} - {account.name}
+                  </MenuItem>
+                ))}
+              </TextField>
             </Grid>
             <Grid item xs={12} sm={6}>
               <TextField

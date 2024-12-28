@@ -22,40 +22,59 @@ const ReceiptForm = () => {
   const { id } = useParams();
   const [loading, setLoading] = useState(false);
   const [customers, setCustomers] = useState([]);
+  const [accounts, setAccounts] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
   const [formData, setFormData] = useState({
-    receiptNumber: '',
     date: new Date().toISOString().split('T')[0],
-    customerId: '',
-    customerName: '',
-    description: '',
-    amount: '',
-    paymentMethod: '',
     reference: '',
+    name: '',
+    account: '',
+    bank: '',
+    description: '',
+    paymentMethod: '',
+    amount: '',
     status: 'Draft'
   });
 
   useEffect(() => {
+    const fetchAccounts = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/accounts`);
+        const allAccounts = response.data;
+        
+        // Filter bank accounts (assuming they have codes starting with 1001 for Cash in Bank)
+        const banks = allAccounts.filter(acc => acc.code.startsWith('1001'));
+        const regularAccounts = allAccounts.filter(acc => !acc.code.startsWith('1001'));
+        
+        setBankAccounts(banks);
+        setAccounts(regularAccounts);
+      } catch (error) {
+        console.error('Error fetching accounts:', error);
+      }
+    };
+
+    const fetchCustomers = async () => {
+      try {
+        const response = await axios.get(`${API_BASE_URL}/customers`);
+        // Ensure we're using the same customer data structure as the Customers module
+        const formattedCustomers = response.data.map(customer => ({
+          _id: customer._id,
+          companyName: customer.companyName,
+          accountCode: customer.accountCode,
+          balance: customer.balance
+        }));
+        setCustomers(formattedCustomers);
+      } catch (error) {
+        console.error('Error fetching customers:', error);
+      }
+    };
+
+    fetchAccounts();
     fetchCustomers();
     if (id) {
       fetchReceipt();
     }
   }, [id]);
-
-  const fetchCustomers = async () => {
-    try {
-      const response = await axios.get(`${API_BASE_URL}/customers`);
-      // Ensure we're using the same customer data structure as the Customers module
-      const formattedCustomers = response.data.map(customer => ({
-        _id: customer._id,
-        companyName: customer.companyName,
-        accountCode: customer.accountCode,
-        balance: customer.balance
-      }));
-      setCustomers(formattedCustomers);
-    } catch (error) {
-      console.error('Error fetching customers:', error);
-    }
-  };
 
   const fetchReceipt = async () => {
     try {
@@ -205,6 +224,40 @@ const ReceiptForm = () => {
                 {paymentMethods.map((method) => (
                   <MenuItem key={method} value={method}>
                     {method}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Account"
+                name="account"
+                value={formData.account}
+                onChange={handleChange}
+                required
+              >
+                {accounts.map((account) => (
+                  <MenuItem key={account._id} value={account._id}>
+                    {account.code} - {account.name}
+                  </MenuItem>
+                ))}
+              </TextField>
+            </Grid>
+            <Grid item xs={12} sm={6}>
+              <TextField
+                select
+                fullWidth
+                label="Bank Account"
+                name="bank"
+                value={formData.bank}
+                onChange={handleChange}
+                required
+              >
+                {bankAccounts.map((account) => (
+                  <MenuItem key={account._id} value={account._id}>
+                    {account.code} - {account.name}
                   </MenuItem>
                 ))}
               </TextField>

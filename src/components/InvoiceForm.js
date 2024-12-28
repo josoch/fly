@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Paper,
@@ -10,16 +10,31 @@ import {
   Switch,
   FormControlLabel,
   Divider,
-  InputAdornment
+  InputAdornment,
+  MenuItem
 } from '@mui/material';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FileCopyIcon from '@mui/icons-material/FileCopy';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 function InvoiceForm() {
   const navigate = useNavigate();
   const [items, setItems] = useState([{ title: '', description: '', price: '0.00', qty: '0' }]);
   const [tasks, setTasks] = useState([{ title: '', description: '', rate: '0.00', hours: '0' }]);
+  const [formData, setFormData] = useState({
+    customer: '',
+    title: '',
+    invoiceNumber: '',
+    poNumber: '',
+    account: '',
+    bank: '',
+    date: new Date().toISOString().split('T')[0],
+    dueDate: ''
+  });
+
+  const [accounts, setAccounts] = useState([]);
+  const [bankAccounts, setBankAccounts] = useState([]);
 
   const calculateSubtotal = () => {
     const itemTotal = items.reduce((sum, item) => sum + (parseFloat(item.price || 0) * parseFloat(item.qty || 0)), 0);
@@ -46,6 +61,34 @@ function InvoiceForm() {
     newTasks[index][field] = value;
     setTasks(newTasks);
   };
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  useEffect(() => {
+    // Fetch accounts
+    const fetchAccounts = async () => {
+      try {
+        const response = await axios.get('/api/accounts');
+        const allAccounts = response.data;
+        
+        // Filter bank accounts (assuming they have codes starting with 1001 for Cash in Bank)
+        const banks = allAccounts.filter(acc => acc.code.startsWith('1001'));
+        const regularAccounts = allAccounts.filter(acc => !acc.code.startsWith('1001'));
+        
+        setBankAccounts(banks);
+        setAccounts(regularAccounts);
+      } catch (error) {
+        console.error('Error fetching accounts:', error);
+      }
+    };
+    fetchAccounts();
+  }, []);
 
   return (
     <Box sx={{ p: { xs: 2, sm: 3 }, maxWidth: '100%' }}>
@@ -78,25 +121,74 @@ function InvoiceForm() {
             <TextField
               fullWidth
               placeholder="Customer"
+              name="customer"
+              value={formData.customer}
+              onChange={handleChange}
               sx={{ mb: { xs: 2, sm: 3 }, bgcolor: '#fdfde7' }}
             />
 
             <TextField
               fullWidth
               placeholder="Title (optional)"
+              name="title"
+              value={formData.title}
+              onChange={handleChange}
               sx={{ mb: { xs: 2, sm: 3 }, bgcolor: '#fdfde7' }}
             />
+
+            <Grid container spacing={{ xs: 2, sm: 3 }}>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Account"
+                  name="account"
+                  value={formData.account}
+                  onChange={handleChange}
+                  required
+                >
+                  {accounts.map((account) => (
+                    <MenuItem key={account._id} value={account._id}>
+                      {account.code} - {account.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  select
+                  fullWidth
+                  label="Bank Account"
+                  name="bank"
+                  value={formData.bank}
+                  onChange={handleChange}
+                  required
+                >
+                  {bankAccounts.map((account) => (
+                    <MenuItem key={account._id} value={account._id}>
+                      {account.code} - {account.name}
+                    </MenuItem>
+                  ))}
+                </TextField>
+              </Grid>
+            </Grid>
 
             <Grid container spacing={{ xs: 2, sm: 3 }}>
               <Grid item xs={6}>
                 <TextField
                   fullWidth
                   label="Invoice #"
+                  name="invoiceNumber"
+                  value={formData.invoiceNumber}
+                  onChange={handleChange}
                   sx={{ bgcolor: '#fdfde7' }}
                 />
                 <TextField
                   fullWidth
                   label="PO #"
+                  name="poNumber"
+                  value={formData.poNumber}
+                  onChange={handleChange}
                   sx={{ mt: { xs: 2, sm: 3 } }}
                 />
               </Grid>
@@ -104,12 +196,18 @@ function InvoiceForm() {
                 <TextField
                   fullWidth
                   type="date"
-                  defaultValue="2024-12-09"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleChange}
                   sx={{ bgcolor: '#fdfde7' }}
                 />
                 <TextField
                   fullWidth
                   label="Due"
+                  name="dueDate"
+                  value={formData.dueDate}
+                  onChange={handleChange}
+                  type="date"
                   sx={{ mt: { xs: 2, sm: 3 }, bgcolor: '#fdfde7' }}
                 />
               </Grid>

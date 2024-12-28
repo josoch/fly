@@ -5,6 +5,8 @@ const dotenv = require('dotenv');
 const bodyParser = require('body-parser');
 const customerRoutes = require('./routes/customers');
 const supplierRoutes = require('./routes/suppliers');
+const accountRoutes = require('./routes/accounts');
+const transactionRoutes = require('./routes/transactions');
 
 // Load environment variables
 dotenv.config();
@@ -28,6 +30,8 @@ app.use((req, res, next) => {
 // Routes
 app.use('/api/customers', customerRoutes);
 app.use('/api/suppliers', supplierRoutes);
+app.use('/api/accounts', accountRoutes);
+app.use('/api/transactions', transactionRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
