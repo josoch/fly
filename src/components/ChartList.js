@@ -36,7 +36,8 @@ const ChartList = () => {
     code: '',
     name: '',
     type: '',
-    description: ''
+    description: '',
+    balance: 0
   });
   const [error, setError] = useState('');
 
@@ -62,7 +63,8 @@ const ChartList = () => {
         code: account.code,
         name: account.name,
         type: account.type,
-        description: account.description || ''
+        description: account.description || '',
+        balance: account.balance || 0
       });
       setEditingAccount(account);
     } else {
@@ -70,7 +72,8 @@ const ChartList = () => {
         code: '',
         name: '',
         type: '',
-        description: ''
+        description: '',
+        balance: 0
       });
       setEditingAccount(null);
     }
@@ -83,7 +86,8 @@ const ChartList = () => {
       code: '',
       name: '',
       type: '',
-      description: ''
+      description: '',
+      balance: 0
     });
     setEditingAccount(null);
     setError('');
@@ -153,6 +157,7 @@ const ChartList = () => {
               <TableCell>Name</TableCell>
               <TableCell>Type</TableCell>
               <TableCell>Description</TableCell>
+              <TableCell align="right">Balance</TableCell>
               <TableCell align="right">Actions</TableCell>
             </TableRow>
           </TableHead>
@@ -163,6 +168,12 @@ const ChartList = () => {
                 <TableCell>{account.name}</TableCell>
                 <TableCell>{account.type}</TableCell>
                 <TableCell>{account.description}</TableCell>
+                <TableCell align="right">
+                  {new Intl.NumberFormat('en-NG', {
+                    style: 'currency',
+                    currency: 'NGN'
+                  }).format(account.balance || 0)}
+                </TableCell>
                 <TableCell align="right">
                   <Tooltip title="Edit">
                     <IconButton onClick={() => handleOpenDialog(account)}>
@@ -223,11 +234,27 @@ const ChartList = () => {
               name="description"
               value={formData.description}
               onChange={handleInputChange}
+              fullWidth
               multiline
               rows={3}
+            />
+            <TextField
+              label="Balance"
+              name="balance"
+              type="number"
+              value={formData.balance}
+              onChange={handleInputChange}
               fullWidth
+              InputProps={{
+                startAdornment: <span>₦</span>
+              }}
             />
           </Box>
+          {error && (
+            <Typography color="error" sx={{ mt: 2 }}>
+              {error}
+            </Typography>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={handleCloseDialog}>Cancel</Button>

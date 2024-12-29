@@ -10,6 +10,11 @@ const supplierRoutes = require('./routes/suppliers');
 const accountRoutes = require('./routes/accounts');
 const transactionRoutes = require('./routes/transactions');
 const receiptRoutes = require('./routes/receipts');
+const paymentRoutes = require('./routes/payments');
+
+// Import models
+const Transaction = require('./models/Transaction');
+const Payment = require('./models/Payment');
 
 // Load environment variables
 dotenv.config();
@@ -42,6 +47,9 @@ app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/receipts', receiptRoutes);
 
+// Mount payment routes - ensure this is before the 404 handler
+app.use('/api/payments', paymentRoutes);
+
 // Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ 
@@ -60,8 +68,9 @@ app.use((req, res) => {
   console.error('- /api/accounts');
   console.error('- /api/transactions');
   console.error('- /api/receipts');
-  console.error('- /api/receipts/next-number');
   console.error('- /api/transactions/next-number');
+  console.error('- /api/payments/next-number');
+  console.error('- /api/payments');
   console.error('- /health');
   res.status(404).json({ 
     message: 'Route not found',
@@ -110,8 +119,9 @@ connectWithRetry().then(() => {
     console.log('- /api/accounts');
     console.log('- /api/transactions');
     console.log('- /api/receipts');
-    console.log('- /api/receipts/next-number');
     console.log('- /api/transactions/next-number');
+    console.log('- /api/payments/next-number');
+    console.log('- /api/payments');
     console.log('- /health');
   });
 }).catch(error => {
