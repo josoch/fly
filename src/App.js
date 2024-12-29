@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
-import { ThemeProvider, createTheme } from '@mui/material/styles';
+import { ThemeProvider, createTheme, useTheme } from '@mui/material/styles';
 import CssBaseline from '@mui/material/CssBaseline';
 import Box from '@mui/material/Box';
 import useMediaQuery from '@mui/material/useMediaQuery';
@@ -17,6 +17,7 @@ import Payments from './components/Payments';
 import ReceiptForm from './components/ReceiptForm';
 import PaymentForm from './components/PaymentForm';
 import TransactionList from './components/TransactionList';
+import Reports from './components/Reports';
 
 const theme = createTheme({
   palette: {
@@ -52,6 +53,7 @@ const theme = createTheme({
 
 function App() {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down('sm'));
 
   const handleDrawerToggle = () => {
@@ -63,17 +65,18 @@ function App() {
       <CssBaseline />
       <Router>
         <Box sx={{ display: 'flex' }}>
-          <Navbar onMenuClick={handleDrawerToggle} />
-          <Sidebar 
-            open={isMobile ? mobileOpen : true}
-            onClose={handleDrawerToggle}
-            variant={isMobile ? 'temporary' : 'permanent'}
-          />
+          <Navbar />
+          {!isMobile && (
+            <Sidebar 
+              open={true}
+              variant="permanent"
+            />
+          )}
           <Box 
             component="main" 
             sx={{ 
               flexGrow: 1, 
-              p: { xs: 2, sm: 3 }, 
+              p: { xs: 1, sm: 3 }, 
               mt: { xs: 7, sm: 8 },
               width: { sm: `calc(100% - ${240}px)` }
             }}
@@ -91,6 +94,8 @@ function App() {
               <Route path="/payments" element={<Payments />} />
               <Route path="/payments/new" element={<PaymentForm />} />
               <Route path="/payments/edit/:id" element={<PaymentForm />} />
+              <Route path="/suppliers" element={<Suppliers />} />
+              <Route path="/reports" element={<Reports />} />
             </Routes>
           </Box>
         </Box>

@@ -7,6 +7,12 @@ const transactionSchema = new mongoose.Schema({
     enum: ['Receipt', 'Payment', 'Invoice', 'Bill'],
     trim: true
   },
+  transactionNumber: {
+    type: String,
+    required: true,
+    unique: true,
+    trim: true
+  },
   voucherNumber: {
     type: String,
     required: true,
@@ -81,6 +87,7 @@ transactionSchema.index({ type: 1, date: -1 });
 transactionSchema.index({ voucherNumber: 1 }, { unique: true });
 transactionSchema.index({ account: 1 });
 transactionSchema.index({ status: 1 });
+transactionSchema.index({ transactionNumber: 1 }, { unique: true });
 
 // Virtual field for formatted date
 transactionSchema.virtual('formattedDate').get(function() {
@@ -106,6 +113,25 @@ transactionSchema.statics.generateVoucherNumber = async function(type) {
   }
 
   return `${prefix}${currentYear}${currentMonth}${sequence}`;
+};
+
+// Method to generate next transaction number
+transactionSchema.statics.generateTransactionNumber = async function() {
+  const currentYear = new Date().getFullYear().toString().slice(-2);
+  const currentMonth = (new Date().getMonth() + 1).toString().padStart(2, '0');
+  
+  // Find the last transaction number for this month
+  const lastTransaction = await this.findOne({
+    transactionNumber: new RegExp(`^TXN${currentYear}${currentMonth}`)
+  }).sort({ transactionNumber: -1 });
+
+  let sequence = '0001';
+  if (lastTransaction) {
+    const lastSequence = parseInt(lastTransaction.transactionNumber.slice(-4));
+    sequence = (lastSequence + 1).toString().padStart(4, '0');
+  }
+
+  return `TXN${currentYear}${currentMonth}${sequence}`;
 };
 
 const Transaction = mongoose.model('Transaction', transactionSchema);

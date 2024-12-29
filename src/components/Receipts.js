@@ -52,8 +52,8 @@ const Receipts = () => {
 
   useEffect(() => {
     const filtered = receipts.filter(receipt =>
-      receipt.receiptNumber.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      receipt.customerName.toLowerCase().includes(searchTerm.toLowerCase())
+      (receipt.voucherNumber || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (receipt.customerName || '').toLowerCase().includes(searchTerm.toLowerCase())
     );
     setFilteredReceipts(filtered);
     setPage(0);
@@ -78,7 +78,7 @@ const Receipts = () => {
 
   const handleExportToExcel = () => {
     const worksheet = XLSX.utils.json_to_sheet(receipts.map(receipt => ({
-      'Receipt Number': receipt.receiptNumber,
+      'Receipt Number': receipt.voucherNumber,
       'Date': receipt.date,
       'Customer': receipt.customerName,
       'Amount': receipt.amount,
@@ -148,7 +148,7 @@ const Receipts = () => {
               .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage)
               .map((receipt) => (
                 <TableRow key={receipt._id}>
-                  <TableCell>{receipt.receiptNumber}</TableCell>
+                  <TableCell>{receipt.voucherNumber}</TableCell>
                   <TableCell>{new Date(receipt.date).toLocaleDateString()}</TableCell>
                   <TableCell>{receipt.customerName}</TableCell>
                   <TableCell align="right">{formatCurrency(receipt.amount)}</TableCell>

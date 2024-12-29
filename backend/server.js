@@ -3,10 +3,13 @@ const mongoose = require('mongoose');
 const cors = require('cors');
 const dotenv = require('dotenv');
 const bodyParser = require('body-parser');
+
+// Import routes
 const customerRoutes = require('./routes/customers');
 const supplierRoutes = require('./routes/suppliers');
 const accountRoutes = require('./routes/accounts');
 const transactionRoutes = require('./routes/transactions');
+const receiptRoutes = require('./routes/receipts');
 
 // Load environment variables
 dotenv.config();
@@ -15,23 +18,29 @@ dotenv.config();
 const app = express();
 
 // Middleware
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+app.use(cors({
+  origin: 'http://localhost:3000',
+  credentials: true
+}));
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// Debug middleware to log requests
+// Debug middleware to log ALL requests
 app.use((req, res, next) => {
-  console.log(`${req.method} ${req.path}`, 
-    req.method === 'POST' || req.method === 'PUT' ? req.body : ''
-  );
+  console.log('-------------------------');
+  console.log(`[Server] ${req.method} ${req.originalUrl}`);
+  console.log('[Server] Headers:', req.headers);
+  console.log('[Server] Body:', req.body);
+  console.log('-------------------------');
   next();
 });
 
-// Routes
+// Mount routes
 app.use('/api/customers', customerRoutes);
 app.use('/api/suppliers', supplierRoutes);
 app.use('/api/accounts', accountRoutes);
 app.use('/api/transactions', transactionRoutes);
+app.use('/api/receipts', receiptRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -42,6 +51,25 @@ app.get('/health', (req, res) => {
   });
 });
 
+// Catch-all route for debugging 404s
+app.use((req, res) => {
+  console.error(`[Server] 404 Not Found: ${req.method} ${req.originalUrl}`);
+  console.error('[Server] Available routes:');
+  console.error('- /api/customers');
+  console.error('- /api/suppliers');
+  console.error('- /api/accounts');
+  console.error('- /api/transactions');
+  console.error('- /api/receipts');
+  console.error('- /api/receipts/next-number');
+  console.error('- /api/transactions/next-number');
+  console.error('- /health');
+  res.status(404).json({ 
+    message: 'Route not found',
+    requestedUrl: req.originalUrl,
+    method: req.method
+  });
+});
+
 // Connect to MongoDB with retry logic
 const connectWithRetry = async () => {
   try {
@@ -49,14 +77,8 @@ const connectWithRetry = async () => {
     await mongoose.connect(process.env.MONGODB_URI);
     console.log('Successfully connected to MongoDB');
     console.log('Database:', mongoose.connection.name);
-  } catch (err) {
-    console.error('MongoDB connection error:', err.message);
-    if (err.name === 'MongoServerSelectionError') {
-      console.error('Could not connect to MongoDB server. Please check:');
-      console.error('1. Your network connection');
-      console.error('2. MongoDB Atlas username and password');
-      console.error('3. IP whitelist settings in MongoDB Atlas');
-    }
+  } catch (error) {
+    console.error('MongoDB connection error:', error);
     console.log('Retrying in 5 seconds...');
     setTimeout(connectWithRetry, 5000);
   }
@@ -68,18 +90,32 @@ mongoose.connection.on('connected', () => {
 });
 
 mongoose.connection.on('error', (err) => {
-  console.error('MongoDB error:', err);
+  console.error('MongoDB connection error:', err);
 });
 
 mongoose.connection.on('disconnected', () => {
   console.log('MongoDB disconnected');
 });
 
-// Initial connection
-connectWithRetry();
-
 // Start server
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
-  console.log(`Server is running on port ${PORT}`);
+const port = process.env.PORT || 5000;
+
+// Connect to MongoDB first, then start the server
+connectWithRetry().then(() => {
+  app.listen(port, () => {
+    console.log(`Server is running on port ${port}`);
+    console.log('Available routes:');
+    console.log('- /api/customers');
+    console.log('- /api/suppliers');
+    console.log('- /api/accounts');
+    console.log('- /api/transactions');
+    console.log('- /api/receipts');
+    console.log('- /api/receipts/next-number');
+    console.log('- /api/transactions/next-number');
+    console.log('- /health');
+  });
+}).catch(error => {
+  console.error('Failed to start server:', error);
 });
+
+module.exports = app;
