@@ -7,15 +7,15 @@ import useMediaQuery from '@mui/material/useMediaQuery';
 import Dashboard from './components/Dashboard';
 import Navbar from './components/Navbar';
 import Sidebar from './components/Sidebar';
-import InvoiceForm from './components/InvoiceForm';
+// import InvoiceForm from './components/InvoiceForm';
 import Customers from './components/Customers';
 import Suppliers from './components/Suppliers';
 import ChartList from './components/ChartList';
-import Invoices from './components/Invoices';
-import ReceiptForm from './components/ReceiptForm';
-import PaymentForm from './components/PaymentForm';
+// import Invoices from './components/Invoices';
+import TransactionForm from './components/TransactionForm';
+// import PaymentForm from './components/PaymentForm';
 import TransactionList from './components/TransactionList';
-import Reports from './components/Reports';
+// import Reports from './components/Reports';
 
 
 const theme = createTheme({
@@ -86,13 +86,11 @@ function App() {
               <Route path="/suppliers" element={<Suppliers />} />
               <Route path="/chart" element={<ChartList />} />
               <Route path="/transactions" element={<TransactionList />} />
-              <Route path="/invoices" element={<Invoices />} />
-              <Route path="/receipts/new" element={<ReceiptForm />} />
-              <Route path="/receipts/edit/:id" element={<ReceiptForm />} />
-              <Route path="/payments/new" element={<PaymentForm />} />
-              <Route path="/payments/edit/:id" element={<PaymentForm />} />
+              <Route path="/transactions/new" element={<TransactionForm />} />
+              <Route path="/transactions/edit/:id" element={<TransactionForm />} />
+              {/* <Route path="/receipts/new" element={<TransactionForm />} />
+              <Route path="/receipts/edit/:id" element={<TransactionForm />} /> */}
               <Route path="/suppliers" element={<Suppliers />} />
-              <Route path="/reports" element={<Reports />} />
             </Routes>
           </Box>
         </Box>

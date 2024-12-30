@@ -143,7 +143,7 @@ function Dashboard() {
                     maxWidth: { sm: '200px' },
                     height: '48px'
                   }}
-                  onClick={() => navigate('/invoices')}
+                  onClick={() => navigate('/transactions/new')}
                 >
                   Create an invoice
                 </Button>
