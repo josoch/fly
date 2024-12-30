@@ -232,7 +232,10 @@ function Suppliers() {
   // Safe number formatting function
   const formatCurrency = (value) => {
     const num = parseFloat(value) || 0;
-    return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return num.toLocaleString('en-NG', {
+      style: 'currency',
+      currency: 'NGN'
+    }).replace('NGN', '₦');
   };
 
   const handleExportToExcel = () => {
@@ -241,8 +244,8 @@ function Suppliers() {
       'Account Code': supplier.accountCode || '',
       'Company Name': supplier.companyName || '',
       'Company Reg Number': supplier.companyRegNumber || '',
-      'Balance': supplier.balance ? `₦${formatCurrency(supplier.balance)}` : '₦0.00',
-      'Credit Limit': supplier.creditLimit ? `₦${formatCurrency(supplier.creditLimit)}` : '₦0.00',
+      'Balance': supplier.balance ? formatCurrency(supplier.balance) : '₦0.00',
+      'Credit Limit': supplier.creditLimit ? formatCurrency(supplier.creditLimit) : '₦0.00',
       'Inactive': supplier.inactive ? 'Yes' : 'No',
       'Street 1': supplier.street1 || '',
       'Street 2': supplier.street2 || '',
@@ -463,7 +466,7 @@ function Suppliers() {
                     <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{supplier.contactName}</TableCell>
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{supplier.telephone}</TableCell>
                     <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{supplier.email1}</TableCell>
-                    <TableCell align="right">₦{formatCurrency(supplier.balance)}</TableCell>
+                    <TableCell align="right">{formatCurrency(supplier.balance)}</TableCell>
                     <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
                       {supplier.inactive ? (
                         <Chip size="small" label="Inactive" color="error" />

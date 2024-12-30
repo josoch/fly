@@ -10,7 +10,8 @@ import {
   Alert,
   Snackbar,
   FormControlLabel,
-  Switch
+  Switch,
+  InputAdornment
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
 import axios from 'axios';
@@ -24,6 +25,7 @@ const TransactionForm = () => {
   // Form state
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
+    transactionNumber: '',
     voucherNumber: '',
     type: 'Receipt',
     reference: '',
@@ -43,7 +45,6 @@ const TransactionForm = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // Fetch data on component mount
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -55,11 +56,6 @@ const TransactionForm = () => {
           axios.get(`${API_BASE_URL}/customers`),
           axios.get(`${API_BASE_URL}/suppliers`)
         ]);
-
-        console.log('Customers Data Structure:', customersRes.data[0]);
-        console.log('Suppliers Data Structure:', suppliersRes.data[0]);
-        console.log('Number of Customers:', customersRes.data.length);
-        console.log('Number of Suppliers:', suppliersRes.data.length);
 
         if (accountsRes.data) setAccounts(accountsRes.data);
         if (customersRes.data) setCustomers(customersRes.data);
@@ -97,20 +93,28 @@ const TransactionForm = () => {
       setLoading(true);
       setError(null);
 
-      if (!formData.date || !formData.amount || !formData.paymentMethod || 
-          !formData.account || !formData.bank) {
-        throw new Error('Please fill in all required fields');
+      // Find the selected account and bank objects to get their IDs
+      const selectedAccount = accounts.find(acc => acc.name === formData.account);
+      const selectedBank = banks.find(bank => bank.name === formData.bank);
+
+      if (!selectedAccount || !selectedBank) {
+        throw new Error('Please select both account and bank');
       }
 
-      const receiptData = {
+      // Generate transaction number if not provided
+      const transactionNumber = formData.transactionNumber || `${formData.type === 'Payment' ? 'PV' : 'RV'}-${Date.now()}`;
+
+      const transactionData = {
         ...formData,
-        type: 'Receipt'
+        transactionNumber,
+        account: selectedAccount._id,  // Use the ObjectId
+        bank: selectedBank._id,        // Use the ObjectId
       };
 
       if (id) {
-        await axios.put(`${API_BASE_URL}/transactions/${id}`, receiptData);
+        await axios.put(`${API_BASE_URL}/transactions/${id}`, transactionData);
       } else {
-        await axios.post(`${API_BASE_URL}/transactions`, receiptData);
+        await axios.post(`${API_BASE_URL}/transactions`, transactionData);
       }
       
       setSuccess(true);
@@ -119,8 +123,8 @@ const TransactionForm = () => {
       }, 1500);
 
     } catch (error) {
-      console.error('Error saving receipt:', error);
-      setError(error.response?.data?.message || 'Failed to save receipt. Please check your connection and try again.');
+      console.error('Error saving transaction:', error);
+      setError(error.response?.data?.message || 'Failed to save transaction. Please check all required fields.');
     } finally {
       setLoading(false);
     }
@@ -148,7 +152,7 @@ const TransactionForm = () => {
                 color: 'primary.main'
               }}
             >
-              {id ? 'Edit Transaction' : 'New Transaction'}
+              {id ? 'Edit Transaction' : 'Invoice'}
             </Typography>
             <Typography 
               variant="body2" 
@@ -237,6 +241,16 @@ const TransactionForm = () => {
             />
           </Grid>
 
+          {/* <Grid item xs={12} sm={6}>
+            <TextField
+              fullWidth
+              label="Transaction Number"
+              name="transactionNumber"
+              value={formData.transactionNumber}
+              onChange={handleInputChange}
+            />
+          </Grid> */}
+
           <Grid item xs={12} sm={6}>
             <TextField
               fullWidth
@@ -300,7 +314,9 @@ const TransactionForm = () => {
               label="Amount"
               value={formData.amount}
               onChange={handleInputChange}
-              inputProps={{ step: "0.01" }}
+              InputProps={{
+                startAdornment: <InputAdornment position="start">₦</InputAdornment>,
+              }}
             />
           </Grid>
 
@@ -341,6 +357,7 @@ const TransactionForm = () => {
               label="Bank"
               value={formData.bank}
               onChange={handleInputChange}
+              error={Boolean(error && error.includes('bank'))}
             >
               {banks.map((bank) => (
                 <MenuItem key={bank._id} value={bank.name}>
@@ -359,6 +376,7 @@ const TransactionForm = () => {
               label="Account"
               value={formData.account}
               onChange={handleInputChange}
+              error={Boolean(error && error.includes('account'))}
             >
               {accounts.map((account) => (
                 <MenuItem key={account._id} value={account.name}>
@@ -403,7 +421,7 @@ const TransactionForm = () => {
         onClose={() => setSuccess(false)}
       >
         <Alert severity="success">
-          Receipt {id ? 'updated' : 'created'} successfully!
+          Transaction {id ? 'updated' : 'created'} successfully!
         </Alert>
       </Snackbar>
     </Box>

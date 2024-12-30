@@ -108,7 +108,10 @@ function Customers() {
   // Safe number formatting function
   const formatCurrency = (value) => {
     const num = parseFloat(value) || 0;
-    return num.toFixed(2).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+    return num.toLocaleString('en-NG', {
+      style: 'currency',
+      currency: 'NGN'
+    }).replace('NGN', '₦');
   };
 
   const filteredCustomers = customers
@@ -280,8 +283,8 @@ function Customers() {
       'Account Code': customer.accountCode || '',
       'Company Name': customer.companyName || '',
       'Company Reg Number': customer.companyRegNumber || '',
-      'Balance': customer.balance ? `₦${formatCurrency(customer.balance)}` : '₦0.00',
-      'Credit Limit': customer.creditLimit ? `₦${formatCurrency(customer.creditLimit)}` : '₦0.00',
+      'Balance': formatCurrency(customer.balance),
+      'Credit Limit': formatCurrency(customer.creditLimit),
       'Inactive': customer.inactive ? 'Yes' : 'No',
       'Street 1': customer.street1 || '',
       'Street 2': customer.street2 || '',
@@ -467,12 +470,12 @@ function Customers() {
                     Name
                   </TableSortLabel>
                 </TableCell>
-                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Contact</TableCell>
-                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Telephone</TableCell>
-                <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>Email</TableCell>
+                <TableCell sx={{display: { xs: 'none', sm: 'table-cell'}}}>Contact</TableCell>
+                <TableCell sx={{display: { xs: 'none', md: 'table-cell'}}}>Telephone</TableCell>
+                <TableCell sx={{display: { xs: 'none', md: 'table-cell'}}}>Email</TableCell>
                 <TableCell align="right">Balance</TableCell>
-                <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Status</TableCell>
-                <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>Actions</TableCell>
+                <TableCell sx={{display: { xs: 'none', sm: 'table-cell'}}}>Status</TableCell>
+                <TableCell align="right" sx={{display: { xs: 'none', sm: 'table-cell'}}}>Actions</TableCell>
               </TableRow>
             </TableHead>
             <TableBody>
@@ -497,18 +500,18 @@ function Customers() {
                     </TableCell>
                     <TableCell>{customer.accountCode}</TableCell>
                     <TableCell>{customer.companyName}</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>{customer.contactName}</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{customer.telephone}</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', md: 'table-cell' } }}>{customer.email1}</TableCell>
-                    <TableCell align="right">₦{formatCurrency(customer.balance)}</TableCell>
-                    <TableCell sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                    <TableCell sx={{display: { xs: 'none', sm: 'table-cell'}}}>{customer.contactName}</TableCell>
+                    <TableCell sx={{display: { xs: 'none', md: 'table-cell'}}}>{customer.telephone}</TableCell>
+                    <TableCell sx={{display: { xs: 'none', md: 'table-cell'}}}>{customer.email1}</TableCell>
+                    <TableCell align="right">{formatCurrency(customer.balance)}</TableCell>
+                    <TableCell sx={{display: { xs: 'none', sm: 'table-cell'}}}>
                       {customer.inactive ? (
                         <Chip size="small" label="Inactive" color="error" />
                       ) : (
                         <Chip size="small" label="Active" color="success" />
                       )}
                     </TableCell>
-                    <TableCell align="right" sx={{ display: { xs: 'none', sm: 'table-cell' } }}>
+                    <TableCell align="right" sx={{display: { xs: 'none', sm: 'table-cell'}}}>
                       <Tooltip title="Edit">
                         <IconButton 
                           onClick={(e) => {

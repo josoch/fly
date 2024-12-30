@@ -60,6 +60,14 @@ function Dashboard() {
     </Box>
   );
 
+  const formatCurrency = (value) => {
+    const num = parseFloat(value) || 0;
+    return num.toLocaleString('en-NG', {
+      style: 'currency',
+      currency: 'NGN'
+    }).replace('NGN', '₦');
+  };
+
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
       <AppBar position="static" color="default" elevation={1}>
@@ -175,7 +183,7 @@ function Dashboard() {
               <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1.25rem' } }}>
                 Total Revenue
               </Typography>
-              <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>₦0.00</Typography>
+              <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>{formatCurrency(0)}</Typography>
             </Paper>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -188,7 +196,7 @@ function Dashboard() {
               <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1.25rem' } }}>
                 Outstanding
               </Typography>
-              <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>₦0.00</Typography>
+              <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>{formatCurrency(0)}</Typography>
             </Paper>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -201,7 +209,7 @@ function Dashboard() {
               <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1.25rem' } }}>
                 Overdue
               </Typography>
-              <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>₦0.00</Typography>
+              <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>{formatCurrency(0)}</Typography>
             </Paper>
           </Grid>
           <Grid item xs={12} sm={6} md={3}>
@@ -214,7 +222,7 @@ function Dashboard() {
               <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1.25rem' } }}>
                 Paid Last 30 Days
               </Typography>
-              <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>₦0.00</Typography>
+              <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>{formatCurrency(0)}</Typography>
             </Paper>
           </Grid>
         </Grid>

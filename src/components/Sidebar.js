@@ -15,11 +15,13 @@ import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import DescriptionIcon from '@mui/icons-material/Description';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import AssessmentIcon from '@mui/icons-material/Assessment';
+import ArticleIcon from '@mui/icons-material/Article';
 
 const drawerWidth = 240;
 
 const menuItems = [
   { text: 'Dashboard', path: '/', icon: <DashboardIcon /> },
+  { text: 'Invoice', path: '/transactions/new', icon: <ArticleIcon /> },
   { text: 'Customers', path: '/customers', icon: <PeopleIcon /> },
   { text: 'Suppliers', path: '/suppliers', icon: <LocalShippingIcon /> },
   { text: 'Chart of Accounts', path: '/chart', icon: <AccountBalanceIcon /> },
