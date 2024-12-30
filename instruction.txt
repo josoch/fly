@@ -1,0 +1,12 @@
+Fly Accounting Rules for Transactions module:
+1. Transactions from Customers Invoice and Suppliers Invoice in Transactions
+2. Transactions from "Enter Transaction" in Transactions module is also displayed in Transactions.
+3. All transactions are displayed by default in descending order according to latest transaction recorded.
+4. "Txn No" column in Transactions is recorded serially according to time/date of transaction entry.
+5. "Type" column is the abbreviation assigned to the transaction based on the source that the transaction was created:
+- "Receipt" - Transactions created from Receipt voucher
+- "Payment" - Transactions created from Payment voucher
+- "Txn"     - Transactions created from Transactions
+- "Journal" - Transactions created from Journal voucher
+These types should be assigned to each transaction automatically
+6. All other fields are taken from the various vouchers

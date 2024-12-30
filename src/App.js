@@ -12,12 +12,11 @@ import Customers from './components/Customers';
 import Suppliers from './components/Suppliers';
 import ChartList from './components/ChartList';
 import Invoices from './components/Invoices';
-import Receipts from './components/Receipts';
-import Payments from './components/Payments';
 import ReceiptForm from './components/ReceiptForm';
 import PaymentForm from './components/PaymentForm';
 import TransactionList from './components/TransactionList';
 import Reports from './components/Reports';
+
 
 const theme = createTheme({
   palette: {
@@ -88,10 +87,8 @@ function App() {
               <Route path="/chart" element={<ChartList />} />
               <Route path="/transactions" element={<TransactionList />} />
               <Route path="/invoices" element={<Invoices />} />
-              <Route path="/receipts" element={<Receipts />} />
               <Route path="/receipts/new" element={<ReceiptForm />} />
               <Route path="/receipts/edit/:id" element={<ReceiptForm />} />
-              <Route path="/payments" element={<Payments />} />
               <Route path="/payments/new" element={<PaymentForm />} />
               <Route path="/payments/edit/:id" element={<PaymentForm />} />
               <Route path="/suppliers" element={<Suppliers />} />

@@ -6,6 +6,7 @@ const Transaction = require('../models/Transaction');
 // Debug middleware
 router.use((req, res, next) => {
   console.log(`[Payments Route] ${req.method} ${req.path}`);
+  console.log('[Payments Route] Request body:', req.body);
   next();
 });
 
@@ -100,14 +101,14 @@ router.get('/:id', async (req, res) => {
 
 // Create payment
 router.post('/', async (req, res) => {
-  console.log('[Payments Route] Creating payment');
+  console.log('[Payments Route] Creating new payment');
   try {
     const payment = new Payment(req.body);
     const savedPayment = await payment.save();
-    console.log(`[Payments Route] Created payment ${savedPayment._id}`);
+    console.log(`[Payments Route] Created payment: ${savedPayment._id}`);
     res.status(201).json(savedPayment);
   } catch (error) {
-    console.error('[Payments Route] Error:', error);
+    console.error('[Payments Route] Error creating payment:', error);
     res.status(400).json({ message: error.message });
   }
 });

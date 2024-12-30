@@ -24,13 +24,15 @@ const ReceiptForm = () => {
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     customerId: '',
-    customerName: '',
+    name: '', // This will store the customer name
     amount: '',
     paymentMethod: '',
     account: '',
     bank: '',
     description: '',
     reference: '',
+    voucherNumber: '',
+    transactionNumber: '',
     type: 'Receipt', // Fixed type for Receipt voucher
   });
 
@@ -42,38 +44,45 @@ const ReceiptForm = () => {
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // Load initial data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
+        setError(null);
         
-        // Fetch customers and accounts
+        // Fetch all required data
         const [customersRes, accountsRes] = await Promise.all([
-          axios.get('/api/customers'),
-          axios.get('/api/accounts')
+          axios.get('/api/customer'),
+          axios.get('/api/account')
         ]);
 
-        // Set customers with validation
-        const validCustomers = (customersRes.data || []).filter(customer => 
-          customer && typeof customer === 'object' && customer.companyName && customer._id
-        );
-        setCustomers(validCustomers);
-
-        // Split accounts into regular and bank accounts
-        const allAccounts = accountsRes.data || [];
-        // Ensure accounts have valid code property
-        const validAccounts = allAccounts.filter(acc => acc && typeof acc === 'object' && typeof acc.code === 'string');
-        setBankAccounts(validAccounts.filter(acc => acc.code.startsWith('1001')));
-        setAccounts(validAccounts.filter(acc => !acc.code.startsWith('1001')));
-
-        // If editing, load receipt data
-        if (id) {
-          const receiptRes = await axios.get(`/api/receipts/${id}`);
-          setFormData(receiptRes.data);
+        // Set customers
+        if (Array.isArray(customersRes.data)) {
+          setCustomers(customersRes.data);
+        } else {
+          throw new Error('Invalid customers data received');
         }
-      } catch (err) {
-        setError(err.response?.data?.message || 'Error loading data');
+
+        // Set accounts
+        if (Array.isArray(accountsRes.data)) {
+          const allAccounts = accountsRes.data;
+          setBankAccounts(allAccounts.filter(acc => acc.code.startsWith('1001')));
+          setAccounts(allAccounts.filter(acc => !acc.code.startsWith('1001')));
+        } else {
+          throw new Error('Invalid accounts data received');
+        }
+
+        // Set initial voucher number if editing
+        if (id) {
+          const receiptRes = await axios.get(`/api/receipt/${id}`);
+          if (receiptRes.data) {
+            setFormData(receiptRes.data);
+          }
+        }
+
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setError(error.response?.data?.message || 'Failed to load initial data');
       } finally {
         setLoading(false);
       }
@@ -82,98 +91,89 @@ const ReceiptForm = () => {
     fetchData();
   }, [id]);
 
+  // Handle customer selection
+  const handleCustomerChange = (event) => {
+    const selectedCustomerId = event.target.value;
+    const selectedCustomer = customers.find(c => c._id === selectedCustomerId);
+    
+    setFormData(prev => ({
+      ...prev,
+      customerId: selectedCustomerId,
+      name: selectedCustomer ? selectedCustomer.companyName : ''
+    }));
+  };
+
+  // Handle account selection
+  const handleAccountChange = (event) => {
+    const selectedAccountId = event.target.value;
+    const selectedAccount = accounts.find(a => a._id === selectedAccountId);
+    
+    setFormData(prev => ({
+      ...prev,
+      account: selectedAccountId,
+      accountName: selectedAccount ? selectedAccount.name : ''
+    }));
+  };
+
+  // Handle bank selection
+  const handleBankChange = (event) => {
+    const selectedBankId = event.target.value;
+    const selectedBank = bankAccounts.find(b => b._id === selectedBankId);
+    
+    setFormData(prev => ({
+      ...prev,
+      bank: selectedBankId,
+      bankName: selectedBank ? selectedBank.name : ''
+    }));
+  };
+
   // Handle form field changes
-  const handleChange = (e) => {
+  const handleInputChange = (e) => {
     const { name, value } = e.target;
-    setFormData(prev => {
-      const newData = { ...prev, [name]: value };
-      
-      // Update customerName when customerId changes
-      if (name === 'customerId') {
-        const customer = customers.find(c => c._id === value);
-        if (customer) {
-          newData.customerName = customer.companyName;
-        }
-      }
-      
-      return newData;
-    });
+    setFormData(prev => ({ ...prev, [name]: value }));
   };
 
   // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
-    setSuccess(false);
-
     try {
       setLoading(true);
+      setError(null);
 
       // Validate required fields
-      const requiredFields = ['date', 'customerId', 'amount', 'paymentMethod', 'account', 'bank'];
-      const missingFields = requiredFields.filter(field => !formData[field]);
-      if (missingFields.length > 0) {
-        throw new Error(`Please fill in all required fields: ${missingFields.join(', ')}`);
+      if (!formData.date || !formData.customerId || !formData.amount || 
+          !formData.paymentMethod || !formData.account || !formData.bank) {
+        throw new Error('Please fill in all required fields');
       }
 
-      // Get customer name for the selected customer
+      // Get the selected customer name
       const selectedCustomer = customers.find(c => c._id === formData.customerId);
       if (!selectedCustomer) {
-        throw new Error('Selected customer not found');
+        throw new Error('Invalid customer selected');
       }
 
-      // First, get a fresh transaction number
-      console.log('Fetching fresh transaction number...');
-      const transactionRes = await axios.get('/api/transactions/next-number');
-      const transactionNumber = transactionRes.data.transactionNumber;
-      console.log('Got transaction number:', transactionNumber);
-
-      // Then, get a fresh receipt number
-      console.log('Fetching fresh receipt number...');
-      const voucherRes = await axios.get('/api/receipts/next-number');
-      const voucherNumber = voucherRes.data.voucherNumber;
-      console.log('Got receipt number:', voucherNumber);
-
-      // Prepare receipt data
+      // Prepare the receipt data
       const receiptData = {
         ...formData,
-        customerName: selectedCustomer.companyName,
-        voucherNumber,
-        transactionNumber,
+        name: selectedCustomer.companyName,
         type: 'Receipt'
       };
 
-      console.log('Saving receipt with data:', receiptData);
-
-      // Save receipt first
-      const savedReceipt = await axios.post('/api/receipts', receiptData);
-      console.log('Receipt saved:', savedReceipt.data);
-
-      // Create corresponding transaction
-      const transactionData = {
-        date: receiptData.date,
-        transactionNumber: receiptData.transactionNumber,
-        voucherNumber: receiptData.voucherNumber,
-        type: 'Receipt',
-        description: receiptData.description || '',
-        amount: receiptData.amount,
-        name: selectedCustomer.companyName, // Map customerName to name
-        account: receiptData.account,
-        bank: receiptData.bank,
-        paymentMethod: receiptData.paymentMethod,
-        reference: receiptData.reference || '',
-        isActive: true
-      };
-
-      console.log('Creating transaction with data:', transactionData);
-      const savedTransaction = await axios.post('/api/transactions', transactionData);
-      console.log('Transaction created:', savedTransaction.data);
-
+      // Submit the receipt
+      if (id) {
+        await axios.put(`/api/receipt/${id}`, receiptData);
+      } else {
+        await axios.post('/api/receipt', receiptData);
+      }
+      
       setSuccess(true);
-      setTimeout(() => navigate('/receipts'), 1500);
-    } catch (err) {
-      console.error('Error:', err);
-      setError(err.response?.data?.message || err.message);
+      setTimeout(() => {
+        navigate('/invoice');
+      }, 1500);
+
+    } catch (error) {
+      console.error('Error saving receipt:', error);
+      setError(error.response?.data?.message || 'Failed to save receipt');
     } finally {
       setLoading(false);
     }
@@ -186,29 +186,39 @@ const ReceiptForm = () => {
           {id ? 'Edit Receipt' : 'New Receipt'}
         </Typography>
 
-        <Grid container spacing={2}>
+        <Grid container spacing={3}>
           <Grid item xs={12} sm={6}>
             <TextField
-              required
               fullWidth
+              label="Date"
               type="date"
               name="date"
-              label="Date"
               value={formData.date}
-              onChange={handleChange}
+              onChange={handleInputChange}
+              required
               InputLabelProps={{ shrink: true }}
             />
           </Grid>
-
           <Grid item xs={12} sm={6}>
             <TextField
-              required
               fullWidth
+              label="Voucher Number"
+              name="voucherNumber"
+              value={formData.voucherNumber}
+              onChange={handleInputChange}
+              required
+            />
+          </Grid>
+          <Grid item xs={12} sm={6}>
+            <TextField
               select
-              name="customerId"
+              fullWidth
               label="Customer"
-              value={formData.customerId}
-              onChange={handleChange}
+              name="customerId"
+              value={formData.customerId || ''}
+              onChange={handleCustomerChange}
+              required
+              error={!formData.customerId}
             >
               {customers.map((customer) => (
                 <MenuItem key={customer._id} value={customer._id}>
@@ -226,7 +236,7 @@ const ReceiptForm = () => {
               name="amount"
               label="Amount"
               value={formData.amount}
-              onChange={handleChange}
+              onChange={handleInputChange}
               inputProps={{ step: "0.01" }}
             />
           </Grid>
@@ -239,7 +249,7 @@ const ReceiptForm = () => {
               name="paymentMethod"
               label="Payment Method"
               value={formData.paymentMethod}
-              onChange={handleChange}
+              onChange={handleInputChange}
             >
               <MenuItem value="Cash">Cash</MenuItem>
               <MenuItem value="Bank Transfer">Bank Transfer</MenuItem>
@@ -251,17 +261,18 @@ const ReceiptForm = () => {
 
           <Grid item xs={12} sm={6}>
             <TextField
-              required
-              fullWidth
               select
-              name="account"
+              fullWidth
               label="Account"
-              value={formData.account}
-              onChange={handleChange}
+              name="account"
+              value={formData.account || ''}
+              onChange={handleAccountChange}
+              required
+              error={!formData.account}
             >
               {accounts.map((account) => (
                 <MenuItem key={account._id} value={account._id}>
-                  {account.name} ({account.code})
+                  {account.code} - {account.name}
                 </MenuItem>
               ))}
             </TextField>
@@ -269,17 +280,18 @@ const ReceiptForm = () => {
 
           <Grid item xs={12} sm={6}>
             <TextField
-              required
-              fullWidth
               select
-              name="bank"
+              fullWidth
               label="Bank"
-              value={formData.bank}
-              onChange={handleChange}
+              name="bank"
+              value={formData.bank || ''}
+              onChange={handleBankChange}
+              required
+              error={!formData.bank}
             >
               {bankAccounts.map((bank) => (
                 <MenuItem key={bank._id} value={bank._id}>
-                  {bank.name} ({bank.code})
+                  {bank.code} - {bank.name}
                 </MenuItem>
               ))}
             </TextField>
@@ -291,7 +303,7 @@ const ReceiptForm = () => {
               name="description"
               label="Description"
               value={formData.description}
-              onChange={handleChange}
+              onChange={handleInputChange}
               multiline
               rows={2}
             />
@@ -303,7 +315,7 @@ const ReceiptForm = () => {
               name="reference"
               label="Reference"
               value={formData.reference}
-              onChange={handleChange}
+              onChange={handleInputChange}
             />
           </Grid>
         </Grid>

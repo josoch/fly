@@ -13,59 +13,27 @@ router.use((req, res, next) => {
   next();
 });
 
-// Generate next transaction number - must be before any :id routes
+// Generate next transaction number
 router.get('/next-number', async (req, res) => {
   console.log('[Transactions Route] Generating next transaction number');
   try {
-    // Find the highest transaction number from both collections
-    const [lastTransaction, lastReceipt] = await Promise.all([
-      Transaction.findOne().sort({ transactionNumber: -1 }),
-      Receipt.findOne().sort({ transactionNumber: -1 })
-    ]);
+    const lastTransaction = await Transaction.findOne()
+      .sort({ transactionNumber: -1 })
+      .select('transactionNumber');
 
     let nextNumber = 1;
-    const extractNumber = (str) => {
-      const match = str && str.match(/TXN(\d+)/);
-      return match ? parseInt(match[1]) : 0;
-    };
-
-    // Get the highest number from either collection
-    const lastTransactionNum = extractNumber(lastTransaction?.transactionNumber);
-    const lastReceiptNum = extractNumber(lastReceipt?.transactionNumber);
-    nextNumber = Math.max(lastTransactionNum, lastReceiptNum) + 1;
-
-    // Keep trying until we find an unused number
-    let transactionNumber;
-    let isUnique = false;
-    let attempts = 0;
-    const maxAttempts = 1000; // Prevent infinite loops
-
-    while (!isUnique && attempts < maxAttempts) {
-      transactionNumber = `TXN${nextNumber.toString().padStart(4, '0')}`;
-      console.log(`[Transactions Route] Trying transaction number: ${transactionNumber}`);
-      
-      // Check both collections for this number
-      const [existingTransaction, existingReceipt] = await Promise.all([
-        Transaction.findOne({ transactionNumber }),
-        Receipt.findOne({ transactionNumber })
-      ]);
-
-      if (!existingTransaction && !existingReceipt) {
-        isUnique = true;
-        console.log(`[Transactions Route] Found unique transaction number: ${transactionNumber}`);
-      } else {
-        nextNumber++;
-        attempts++;
+    if (lastTransaction && lastTransaction.transactionNumber) {
+      const match = lastTransaction.transactionNumber.match(/TXN(\d+)/);
+      if (match) {
+        nextNumber = parseInt(match[1], 10) + 1;
       }
     }
 
-    if (!isUnique) {
-      throw new Error('Could not generate unique transaction number after maximum attempts');
-    }
-
+    const transactionNumber = `TXN${nextNumber.toString().padStart(4, '0')}`;
+    console.log(`[Transactions Route] Generated transaction number: ${transactionNumber}`);
     res.json({ transactionNumber });
   } catch (error) {
-    console.error('[Transactions Route] Error:', error);
+    console.error('[Transactions Route] Error generating transaction number:', error);
     res.status(500).json({ message: error.message });
   }
 });
