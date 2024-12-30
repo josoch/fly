@@ -27,7 +27,7 @@ const TransactionForm = () => {
     date: new Date().toISOString().split('T')[0],
     transactionNumber: '',
     voucherNumber: '',
-    type: 'Receipt',
+    type: 'Payment',
     reference: '',
     amount: '',
     description: '',
