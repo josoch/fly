@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   Box,
   Typography,
@@ -22,11 +22,16 @@ import PeopleIcon from '@mui/icons-material/People';
 import ReceiptIcon from '@mui/icons-material/Receipt';
 import AccountBalanceIcon from '@mui/icons-material/AccountBalance';
 import SettingsIcon from '@mui/icons-material/Settings';
+import axios from 'axios';
+
+axios.defaults.baseURL = 'http://localhost:5000';
 
 function Dashboard() {
   const navigate = useNavigate();
   const emptyData = [];
   const [mobileOpen, setMobileOpen] = useState(false);
+  
+  console.log('Initial totalRevenue state:', 0);
 
   const handleDrawerToggle = () => {
     setMobileOpen(!mobileOpen);
@@ -66,6 +71,13 @@ function Dashboard() {
       style: 'currency',
       currency: 'NGN'
     }).replace('NGN', '₦');
+  };
+
+  const parseAmount = (amount) => {
+    if (!amount) return 0;
+    // Remove currency symbols, commas, and spaces
+    const cleanAmount = String(amount).replace(/[^0-9.-]/g, '');
+    return parseFloat(cleanAmount) || 0;
   };
 
   return (
@@ -207,7 +219,7 @@ function Dashboard() {
               touchAction: 'manipulation'
             }}>
               <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1.25rem' } }}>
-                Overdue
+                Expenses
               </Typography>
               <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>{formatCurrency(0)}</Typography>
             </Paper>
@@ -220,61 +232,44 @@ function Dashboard() {
               touchAction: 'manipulation'
             }}>
               <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '0.875rem', sm: '1.25rem' } }}>
-                Paid Last 30 Days
+                Net Income
               </Typography>
               <Typography variant="h4" sx={{ fontSize: { xs: '1.5rem', sm: '2rem' } }}>{formatCurrency(0)}</Typography>
             </Paper>
           </Grid>
         </Grid>
 
-        <Grid container spacing={{ xs: 2, sm: 3 }}>
-          <Grid item xs={12} sm={6} md={6}>
-            <Paper sx={{ p: { xs: 2, sm: 3 } }}>
-              <Typography variant="h6" gutterBottom>
-                Expenses
-              </Typography>
-              <Box sx={{ height: { xs: 250, sm: 300 }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Typography variant="body1" gutterBottom>
-                    No expenses yet.
-                  </Typography>
-                  <Button
-                    variant="contained"
-                    color="primary"
-                    sx={{ mt: 2 }}
-                  >
-                    Connect a bank
-                  </Button>
-                </Box>
-              </Box>
-            </Paper>
-          </Grid>
-          <Grid item xs={12} sm={6} md={6}>
-            <Paper sx={{ p: { xs: 2, sm: 3 } }}>
-              <Typography variant="h6" gutterBottom>
-                Tracked time
-              </Typography>
-              <Box sx={{ height: { xs: 250, sm: 300 }, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <Box sx={{ textAlign: 'center' }}>
-                  <Box sx={{ mb: 2 }}>
-                    <Button
-                      variant="outlined"
-                      sx={{ mr: 1 }}
-                    >
-                      Add team
-                    </Button>
-                    <Button
-                      variant="contained"
-                      color="primary"
-                    >
-                      Add payroll
-                    </Button>
-                  </Box>
-                </Box>
-              </Box>
-            </Paper>
-          </Grid>
-        </Grid>
+        <Paper sx={{ p: { xs: 2, sm: 3 } }}>
+          <Typography variant="h6" gutterBottom sx={{ fontSize: { xs: '1rem', sm: '1.25rem' } }}>
+            Revenue & Expenses
+          </Typography>
+          <Box sx={{ 
+            height: { xs: 300, sm: 400 }, 
+            width: '100%',
+            overflow: 'auto',
+            WebkitOverflowScrolling: 'touch'
+          }}>
+            <LineChart
+              width={800}
+              height={300}
+              data={emptyData}
+              margin={{
+                top: 5,
+                right: 30,
+                left: 20,
+                bottom: 5,
+              }}
+            >
+              <CartesianGrid strokeDasharray="3 3" />
+              <XAxis dataKey="name" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="revenue" stroke="#8884d8" activeDot={{ r: 8 }} />
+              <Line type="monotone" dataKey="expenses" stroke="#82ca9d" />
+            </LineChart>
+          </Box>
+        </Paper>
       </Box>
     </Box>
   );

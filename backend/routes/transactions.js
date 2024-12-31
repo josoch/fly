@@ -48,43 +48,31 @@ router.get('/', async (req, res) => {
       endDate,
       status,
       account,
-      search
+      search,
+      includeReceipts
     } = req.query;
 
     // Build query for transactions
     const transactionQuery = { isActive: true };
-    const receiptQuery = {};
 
     if (type) {
       transactionQuery.type = type;
-      if (type === 'Receipt') {
-        // Only fetch receipts if type is Receipt or not specified
-        receiptQuery.type = type;
-      } else {
-        // If another type is specified, don't fetch receipts
-        receiptQuery.type = 'none';
-      }
     }
     
     if (status) {
       transactionQuery.status = status;
-      receiptQuery.status = status;
     }
     if (account) {
       transactionQuery.account = account;
-      receiptQuery.account = account;
     }
 
     if (startDate || endDate) {
       transactionQuery.date = {};
-      receiptQuery.date = {};
       if (startDate) {
         transactionQuery.date.$gte = new Date(startDate);
-        receiptQuery.date.$gte = new Date(startDate);
       }
       if (endDate) {
         transactionQuery.date.$lte = new Date(endDate);
-        receiptQuery.date.$lte = new Date(endDate);
       }
     }
 
@@ -95,51 +83,59 @@ router.get('/', async (req, res) => {
         { transactionNumber: { $regex: search, $options: 'i' } },
         { voucherNumber: { $regex: search, $options: 'i' } }
       ];
-      receiptQuery.$or = [
-        { customerName: { $regex: search, $options: 'i' } },
-        { description: { $regex: search, $options: 'i' } },
-        { transactionNumber: { $regex: search, $options: 'i' } },
-        { voucherNumber: { $regex: search, $options: 'i' } }
-      ];
     }
 
-    // Fetch both transactions and receipts
-    const [transactions, receipts] = await Promise.all([
-      Transaction.find(transactionQuery)
+    // Fetch transactions
+    const transactions = await Transaction.find(transactionQuery)
+      .sort({ date: -1, transactionNumber: -1 })
+      .populate('account')
+      .populate('bank');
+
+    // If includeReceipts is true, fetch and include receipts
+    if (includeReceipts === 'true') {
+      const receiptQuery = { ...transactionQuery };
+      if (search) {
+        receiptQuery.$or = [
+          { customerName: { $regex: search, $options: 'i' } },
+          { description: { $regex: search, $options: 'i' } },
+          { transactionNumber: { $regex: search, $options: 'i' } }
+        ];
+      }
+
+      const receipts = await Receipt.find(receiptQuery)
         .sort({ date: -1, transactionNumber: -1 })
         .populate('account')
-        .populate('bank'),
-      Receipt.find(receiptQuery)
-        .sort({ date: -1, transactionNumber: -1 })
-        .populate('account')
-        .populate('bank')
-    ]);
+        .populate('bank');
 
-    // Transform receipts to match transaction format
-    const transformedReceipts = receipts.map(receipt => ({
-      _id: receipt._id,
-      type: receipt.type,
-      transactionNumber: receipt.transactionNumber,
-      voucherNumber: receipt.voucherNumber,
-      date: receipt.date,
-      reference: receipt.reference,
-      name: receipt.customerName,
-      account: receipt.account,
-      bank: receipt.bank,
-      description: receipt.description,
-      paymentMethod: receipt.paymentMethod,
-      amount: receipt.amount,
-      status: receipt.status,
-      isActive: true
-    }));
+      // Transform receipts to match transaction format
+      const transformedReceipts = receipts.map(receipt => ({
+        _id: receipt._id,
+        type: 'Receipt',
+        transactionNumber: receipt.transactionNumber,
+        voucherNumber: receipt.voucherNumber,
+        date: receipt.date,
+        reference: receipt.reference,
+        name: receipt.customerName,
+        account: receipt.account,
+        bank: receipt.bank,
+        description: receipt.description,
+        paymentMethod: receipt.paymentMethod,
+        amount: receipt.amount,
+        status: receipt.status,
+        isActive: true
+      }));
 
-    // Combine and sort all transactions
-    const allTransactions = [...transactions, ...transformedReceipts].sort((a, b) => 
-      new Date(b.date) - new Date(a.date) || 
-      b.transactionNumber.localeCompare(a.transactionNumber)
-    );
+      // Combine and sort all transactions
+      const allTransactions = [...transactions, ...transformedReceipts].sort((a, b) => 
+        new Date(b.date) - new Date(a.date) || 
+        b.transactionNumber.localeCompare(a.transactionNumber)
+      );
 
-    res.json(allTransactions);
+      return res.json(allTransactions);
+    }
+
+    // If includeReceipts is false, just return transactions
+    res.json(transactions);
   } catch (error) {
     console.error('[Transactions Route] Error:', error);
     res.status(500).json({ message: error.message });

@@ -18,7 +18,7 @@ import axios from 'axios';
 
 const API_BASE_URL = 'http://localhost:5000/api';
 
-const TransactionForm = () => {
+const TransactionForm = ({ type: defaultType }) => {
   const navigate = useNavigate();
   const { id } = useParams();
 
@@ -27,7 +27,7 @@ const TransactionForm = () => {
     date: new Date().toISOString().split('T')[0],
     transactionNumber: '',
     voucherNumber: '',
-    type: 'Payment',
+    type: defaultType || 'Payment',
     reference: '',
     amount: '',
     description: '',
@@ -50,34 +50,60 @@ const TransactionForm = () => {
       try {
         setLoading(true);
         setError(null);
-        
+
+        // Fetch accounts, customers, and suppliers
         const [accountsRes, customersRes, suppliersRes] = await Promise.all([
           axios.get(`${API_BASE_URL}/accounts`),
           axios.get(`${API_BASE_URL}/customers`),
           axios.get(`${API_BASE_URL}/suppliers`)
         ]);
 
-        if (accountsRes.data) setAccounts(accountsRes.data);
-        if (customersRes.data) setCustomers(customersRes.data);
-        if (suppliersRes.data) setSuppliers(suppliersRes.data);
+        setAccounts(accountsRes.data);
+        setCustomers(customersRes.data);
+        setSuppliers(suppliersRes.data);
 
-        // If editing existing transaction
+        // If in edit mode, fetch transaction data
         if (id) {
-          const transactionRes = await axios.get(`${API_BASE_URL}/transactions/${id}`);
-          if (transactionRes.data) {
-            setFormData(transactionRes.data);
+          try {
+            const endpoint = defaultType === 'Receipt' ? 'receipts' : 'transactions';
+            const response = await axios.get(`${API_BASE_URL}/${endpoint}/${id}`);
+            const transaction = response.data;
+
+            // Format the date
+            const formattedDate = new Date(transaction.date).toISOString().split('T')[0];
+
+            // Set form data
+            setFormData({
+              ...transaction,
+              date: formattedDate,
+              account: transaction.account?.name || '',
+              bank: transaction.bank?.name || '',
+              name: defaultType === 'Receipt' ? transaction.customerName : transaction.name
+            });
+          } catch (error) {
+            console.error('Error fetching transaction:', error);
+            setError('Failed to load transaction details');
+            setTimeout(() => navigate('/transactions'), 2000);
           }
+        } else {
+          // For new transaction, get next transaction number
+          const endpoint = defaultType === 'Receipt' ? 'receipts' : 'transactions';
+          const response = await axios.get(`${API_BASE_URL}/${endpoint}/next-number`);
+          setFormData(prev => ({
+            ...prev,
+            transactionNumber: response.data.transactionNumber
+          }));
         }
-      } catch (err) {
-        console.error('Error fetching data:', err);
-        setError(err.response?.data?.message || 'Failed to load form data. Please check your connection and try again.');
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        setError('Failed to load form data');
       } finally {
         setLoading(false);
       }
     };
 
     fetchData();
-  }, [id]);
+  }, [id, navigate, defaultType]);
 
   // Filter banks (accounts of type Asset)
   const banks = accounts.filter(acc => acc.type === 'Asset');
@@ -87,13 +113,14 @@ const TransactionForm = () => {
     setFormData(prev => ({ ...prev, [name]: value }));
   };
 
+  // Handle form submission
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       setLoading(true);
       setError(null);
 
-      // Find the selected account and bank objects to get their IDs
+      // Find the selected account and bank objects
       const selectedAccount = accounts.find(acc => acc.name === formData.account);
       const selectedBank = banks.find(bank => bank.name === formData.bank);
 
@@ -101,20 +128,19 @@ const TransactionForm = () => {
         throw new Error('Please select both account and bank');
       }
 
-      // Generate transaction number if not provided
-      const transactionNumber = formData.transactionNumber || `${formData.type === 'Payment' ? 'PV' : 'RV'}-${Date.now()}`;
-
       const transactionData = {
         ...formData,
-        transactionNumber,
-        account: selectedAccount._id,  // Use the ObjectId
-        bank: selectedBank._id,        // Use the ObjectId
+        account: selectedAccount._id,
+        bank: selectedBank._id,
+        customerName: defaultType === 'Receipt' ? formData.name : undefined
       };
 
+      const endpoint = defaultType === 'Receipt' ? 'receipts' : 'transactions';
+      
       if (id) {
-        await axios.put(`${API_BASE_URL}/transactions/${id}`, transactionData);
+        await axios.put(`${API_BASE_URL}/${endpoint}/${id}`, transactionData);
       } else {
-        await axios.post(`${API_BASE_URL}/transactions`, transactionData);
+        await axios.post(`${API_BASE_URL}/${endpoint}`, transactionData);
       }
       
       setSuccess(true);
@@ -124,7 +150,7 @@ const TransactionForm = () => {
 
     } catch (error) {
       console.error('Error saving transaction:', error);
-      setError(error.response?.data?.message || 'Failed to save transaction. Please check all required fields.');
+      setError(error.response?.data?.message || 'Failed to save transaction');
     } finally {
       setLoading(false);
     }

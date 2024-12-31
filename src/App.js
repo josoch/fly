@@ -16,7 +16,7 @@ import TransactionForm from './components/TransactionForm';
 // import PaymentForm from './components/PaymentForm';
 import TransactionList from './components/TransactionList';
 // import Reports from './components/Reports';
-
+import Journal from './components/Journal';
 
 const theme = createTheme({
   palette: {
@@ -88,9 +88,9 @@ function App() {
               <Route path="/transactions" element={<TransactionList />} />
               <Route path="/transactions/new" element={<TransactionForm />} />
               <Route path="/transactions/edit/:id" element={<TransactionForm />} />
-              {/* <Route path="/receipts/new" element={<TransactionForm />} />
-              <Route path="/receipts/edit/:id" element={<TransactionForm />} /> */}
-              <Route path="/suppliers" element={<Suppliers />} />
+              <Route path="/receipts/new" element={<TransactionForm type="Receipt" />} />
+              <Route path="/receipts/edit/:id" element={<TransactionForm type="Receipt" />} />
+              <Route path="/journal" element={<Journal />} />
             </Routes>
           </Box>
         </Box>

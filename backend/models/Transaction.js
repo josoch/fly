@@ -1,4 +1,5 @@
 const mongoose = require('mongoose');
+const Counter = require('./Counter');
 
 const transactionSchema = new mongoose.Schema({
   type: {
@@ -8,10 +9,9 @@ const transactionSchema = new mongoose.Schema({
     trim: true
   },
   transactionNumber: {
-    type: String,
+    type: Number,
     required: true,
-    unique: true,
-    trim: true
+    unique: true
   },
   voucherNumber: {
     type: String,
@@ -77,8 +77,21 @@ const transactionSchema = new mongoose.Schema({
 });
 
 // Update timestamps before saving
-transactionSchema.pre('save', function(next) {
+transactionSchema.pre('save', async function(next) {
   this.updatedAt = Date.now();
+  
+  if (!this.transactionNumber) {
+    try {
+      const counter = await Counter.findByIdAndUpdate(
+        'transactionCounter',
+        { $inc: { sequence_value: 1 } },
+        { new: true, upsert: true }
+      );
+      this.transactionNumber = counter.sequence_value;
+    } catch (error) {
+      return next(error);
+    }
+  }
   next();
 });
 

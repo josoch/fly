@@ -21,6 +21,10 @@ const accountSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  balance: {
+    type: Number,
+    default: 0
+  },
   parentAccount: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Account'

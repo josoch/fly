@@ -5,7 +5,14 @@ const Account = require('../models/Account');
 // Get all accounts
 router.get('/', async (req, res) => {
   try {
-    const accounts = await Account.find({ isActive: true }).sort('code');
+    const { type } = req.query;
+    const query = { isActive: true };
+    
+    if (type) {
+      query.type = type;
+    }
+    
+    const accounts = await Account.find(query).sort('code');
     res.json(accounts);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -19,6 +26,7 @@ router.post('/', async (req, res) => {
     name: req.body.name,
     type: req.body.type,
     description: req.body.description,
+    balance: req.body.balance || 0,
     parentAccount: req.body.parentAccount
   });
 
@@ -61,6 +69,25 @@ router.put('/:id', async (req, res) => {
 
     const updatedAccount = await account.save();
     res.json(updatedAccount);
+  } catch (error) {
+    res.status(400).json({ message: error.message });
+  }
+});
+
+// Update account balance
+router.put('/:id/balance', async (req, res) => {
+  try {
+    const { balance } = req.body;
+    const account = await Account.findById(req.params.id);
+    
+    if (!account) {
+      return res.status(404).json({ message: 'Account not found' });
+    }
+
+    account.balance = Number(balance) || 0;
+    await account.save();
+    
+    res.json(account);
   } catch (error) {
     res.status(400).json({ message: error.message });
   }

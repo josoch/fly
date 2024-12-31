@@ -16,6 +16,7 @@ import DescriptionIcon from '@mui/icons-material/Description';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
 import AssessmentIcon from '@mui/icons-material/Assessment';
 import ArticleIcon from '@mui/icons-material/Article';
+import BookIcon from '@mui/icons-material/Book';
 
 const drawerWidth = 240;
 
@@ -29,6 +30,7 @@ const menuItems = [
   { text: 'Receipts', path: '/receipts', icon: <ReceiptIcon /> },
   { text: 'Payments', path: '/payments', icon: <PaymentIcon /> },
   { text: 'Reports', path: '/reports', icon: <AssessmentIcon /> },
+  { text: 'Journal', path: '/journal', icon: <BookIcon /> },
 ];
 
 export default function Sidebar({ open, variant = 'permanent' }) {
