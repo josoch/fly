@@ -1,17 +1,30 @@
 import React from 'react';
-import { Box, Typography, Paper } from '@mui/material';
+import { Box } from '@mui/material';
+import JournalForm from './JournalForm';
+
+import { Typography, Button } from '@mui/material';
+import { useNavigate } from 'react-router-dom';
 
 export default function Journal() {
+  const navigate = useNavigate();
+
   return (
-    <Box sx={{ p: 3 }}>
-      <Paper sx={{ p: 3 }}>
-        <Typography variant="h4" gutterBottom>
-          General Journal Voucher
-        </Typography>
-        <Typography variant="body1">
-          Journal entries will be displayed here.
-        </Typography>
-      </Paper>
+    <Box
+      sx={{
+        display: 'flex',
+        justifyContent: 'center',
+      }}
+    >
+      <Typography variant="h4" gutterBottom>
+        General Journal
+      </Typography>
+      <Button
+        variant="contained"
+        onClick={() => navigate('/journal/new')}
+        sx={{ marginLeft: 'auto' }}
+      >
+        Create General Journal
+      </Button>
     </Box>
   );
 }

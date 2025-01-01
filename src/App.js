@@ -17,6 +17,7 @@ import TransactionForm from './components/TransactionForm';
 import TransactionList from './components/TransactionList';
 // import Reports from './components/Reports';
 import Journal from './components/Journal';
+import JournalForm from './components/JournalForm';
 
 const theme = createTheme({
   palette: {
@@ -91,6 +92,7 @@ function App() {
               <Route path="/receipts/new" element={<TransactionForm type="Receipt" />} />
               <Route path="/receipts/edit/:id" element={<TransactionForm type="Receipt" />} />
               <Route path="/journal" element={<Journal />} />
+              <Route path="/journal/new" element={<JournalForm />} />
             </Routes>
           </Box>
         </Box>
