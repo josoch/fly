@@ -29,8 +29,8 @@ export default function JournalForm() {
   const navigate = useNavigate();
   const emptyEntry = {
     chartAccount: '',
-    name: '',
-    description: '',
+    customer: '',
+    suppliers: '',
     debitAmount: '',
     creditAmount: ''
   };
@@ -44,22 +44,31 @@ export default function JournalForm() {
   });
   const [journalEntries, setJournalEntries] = useState([{ ...emptyEntry }]);
   const [chartAccounts, setChartAccounts] = useState([]);
+  const [customers, setCustomers] = useState([]);
+  const [suppliers, setSuppliers] = useState([]);
   const [error, setError] = useState(null);
   const [success, setSuccess] = useState(false);
 
-  // Fetch chart accounts
+  // Fetch chart accounts, customers and suppliers
   useEffect(() => {
-    const fetchChartAccounts = async () => {
+    const fetchData = async () => {
       try {
-        const response = await axios.get('/api/accounts');
-        setChartAccounts(response.data);
+        const [accountsResponse, customersResponse, suppliersResponse] = await Promise.all([
+          axios.get('/api/accounts'),
+          axios.get('/api/customers'),  
+          axios.get('/api/suppliers')   
+        ]);
+        
+        setChartAccounts(accountsResponse.data);
+        setCustomers(customersResponse.data);
+        setSuppliers(suppliersResponse.data);
       } catch (err) {
-        console.error('Error fetching chart accounts:', err);
-        setError('Failed to load chart accounts');
+        console.error('Error fetching data:', err);
+        setError('Failed to load required data');
       }
     };
 
-    fetchChartAccounts();
+    fetchData();
   }, []);
 
   // Calculate totals
@@ -86,10 +95,30 @@ export default function JournalForm() {
   // Handle entry change
   const handleEntryChange = (index, field, value) => {
     const updatedEntries = [...journalEntries];
-    updatedEntries[index] = {
-      ...updatedEntries[index],
-      [field]: value
-    };
+    
+    // If changing debit or credit amount
+    if (field === 'debitAmount' || field === 'creditAmount') {
+      // Clear the opposite field if a value is entered
+      if (value && value !== '0') {
+        updatedEntries[index] = {
+          ...updatedEntries[index],
+          [field]: value,
+          [field === 'debitAmount' ? 'creditAmount' : 'debitAmount']: ''
+        };
+      } else {
+        updatedEntries[index] = {
+          ...updatedEntries[index],
+          [field]: value
+        };
+      }
+    } else {
+      // For other fields, just update normally
+      updatedEntries[index] = {
+        ...updatedEntries[index],
+        [field]: value
+      };
+    }
+    
     setJournalEntries(updatedEntries);
   };
 
@@ -139,6 +168,9 @@ export default function JournalForm() {
 
         // Process debit transaction
         if (entry.debitAmount && Number(entry.debitAmount) > 0) {
+          const customer = entry.customer ? customers.find(c => c.id === entry.customer) : null;
+          const supplier = entry.suppliers ? suppliers.find(s => s.id === entry.suppliers) : null;
+          
           const debitTxn = {
             transactionNumber: String(commonFields.voucherNumber + '-DR'),
             date: String(commonFields.date),
@@ -149,7 +181,10 @@ export default function JournalForm() {
             amount: Number(entry.debitAmount),
             account: String(accountName),
             bank: String(bankAccount),
-            name: String(entry.name),
+            customer: customer ? customer.companyName : '',
+            supplier: supplier ? supplier.companyName : '',
+            customerPhone: customer ? customer.telephone : '',
+            supplierPhone: supplier ? supplier.telephone : '',
             paymentMethod: 'Journal'
           };
           transactions.push(debitTxn);
@@ -157,6 +192,9 @@ export default function JournalForm() {
 
         // Process credit transaction
         if (entry.creditAmount && Number(entry.creditAmount) > 0) {
+          const customer = entry.customer ? customers.find(c => c.id === entry.customer) : null;
+          const supplier = entry.suppliers ? suppliers.find(s => s.id === entry.suppliers) : null;
+          
           const creditTxn = {
             transactionNumber: String(commonFields.voucherNumber + '-CR'),
             date: String(commonFields.date),
@@ -167,7 +205,10 @@ export default function JournalForm() {
             amount: Number(entry.creditAmount),
             account: String(accountName),
             bank: String(bankAccount),
-            name: String(entry.name),
+            customer: customer ? customer.companyName : '',
+            supplier: supplier ? supplier.companyName : '',
+            customerPhone: customer ? customer.telephone : '',
+            supplierPhone: supplier ? supplier.telephone : '',
             paymentMethod: 'Journal'
           };
           transactions.push(creditTxn);
@@ -253,18 +294,18 @@ export default function JournalForm() {
           <Table size="small">
             <TableHead>
               <TableRow>
-                <TableCell>Account</TableCell>
-                <TableCell>Name</TableCell>
-                <TableCell>Description</TableCell>
-                <TableCell align="right">Debit</TableCell>
-                <TableCell align="right">Credit</TableCell>
-                <TableCell padding="none" />
+                <TableCell width="25%">Account</TableCell>
+                <TableCell width="20%">Customer</TableCell>
+                <TableCell width="20%">Suppliers</TableCell>
+                <TableCell width="15%" align="right">Debit</TableCell>
+                <TableCell width="15%" align="right">Credit</TableCell>
+                <TableCell width="5%" padding="none" />
               </TableRow>
             </TableHead>
             <TableBody>
               {journalEntries.map((entry, index) => (
                 <TableRow key={index}>
-                  <TableCell>
+                  <TableCell width="25%">
                     <TextField
                       select
                       fullWidth
@@ -279,43 +320,71 @@ export default function JournalForm() {
                       ))}
                     </TextField>
                   </TableCell>
-                  <TableCell>
+                  <TableCell width="20%">
                     <TextField
+                      select
                       fullWidth
                       size="small"
-                      value={entry.name}
-                      onChange={(e) => handleEntryChange(index, 'name', e.target.value)}
-                    />
+                      value={entry.customer}
+                      onChange={(e) => handleEntryChange(index, 'customer', e.target.value)}
+                      label="Select Customer"
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {customers.map((customer) => (
+                        <MenuItem key={customer.id} value={customer.id}>
+                          {customer.companyName} - {customer.telephone}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </TableCell>
-                  <TableCell>
+                  <TableCell width="20%">
                     <TextField
+                      select
                       fullWidth
                       size="small"
-                      value={entry.description}
-                      onChange={(e) => handleEntryChange(index, 'description', e.target.value)}
-                    />
+                      value={entry.suppliers}
+                      onChange={(e) => handleEntryChange(index, 'suppliers', e.target.value)}
+                      label="Select Supplier"
+                    >
+                      <MenuItem value="">None</MenuItem>
+                      {suppliers.map((supplier) => (
+                        <MenuItem key={supplier.id} value={supplier.id}>
+                          {supplier.companyName} - {supplier.telephone}
+                        </MenuItem>
+                      ))}
+                    </TextField>
                   </TableCell>
-                  <TableCell>
+                  <TableCell width="15%" align="right">
                     <TextField
                       type="number"
                       size="small"
                       value={entry.debitAmount}
                       onChange={(e) => handleEntryChange(index, 'debitAmount', e.target.value)}
-                      inputProps={{ min: 0, step: "0.01" }}
-                      sx={{ width: 120 }}
+                      inputProps={{ 
+                        min: 0, 
+                        step: "0.01",
+                        style: { textAlign: 'right' }
+                      }}
+                      sx={{ width: '100%' }}
+                      disabled={entry.creditAmount && entry.creditAmount !== '0'}
                     />
                   </TableCell>
-                  <TableCell>
+                  <TableCell width="15%" align="right">
                     <TextField
                       type="number"
                       size="small"
                       value={entry.creditAmount}
                       onChange={(e) => handleEntryChange(index, 'creditAmount', e.target.value)}
-                      inputProps={{ min: 0, step: "0.01" }}
-                      sx={{ width: 120 }}
+                      inputProps={{ 
+                        min: 0, 
+                        step: "0.01",
+                        style: { textAlign: 'right' }
+                      }}
+                      sx={{ width: '100%' }}
+                      disabled={entry.debitAmount && entry.debitAmount !== '0'}
                     />
                   </TableCell>
-                  <TableCell padding="none">
+                  <TableCell width="5%" padding="none" align="center">
                     <IconButton
                       size="small"
                       onClick={() => handleRemoveEntry(index)}
